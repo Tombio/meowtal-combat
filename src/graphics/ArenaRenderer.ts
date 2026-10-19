@@ -30,19 +30,25 @@ export class ArenaRenderer {
     ctx.fill();
     ctx.shadowBlur = 0;
 
-    // Distant mountain / pagoda silhouette
-    ctx.fillStyle = 'rgba(20, 8, 38, 0.7)';
-    ctx.beginPath();
-    ctx.moveTo(0, 360);
-    ctx.lineTo(80, 240);
-    ctx.lineTo(160, 360);
-    ctx.lineTo(240, 280);
-    ctx.lineTo(340, 360);
-    ctx.lineTo(cfg.canvasWidth, 360);
-    ctx.lineTo(cfg.canvasWidth, cfg.canvasHeight);
-    ctx.lineTo(0, cfg.canvasHeight);
-    ctx.closePath();
-    ctx.fill();
+    // 2. Distant Majestic Mount Fuji
+    this.drawMountFuji(ctx, 520, cfg.ringSurfaceY - 20);
+
+    // 3. Traditional Multi-Tier Japanese Pagodas (Pagoda towers with curved roof lines)
+    // Left tall 5-tier pagoda silhouetted against the full moon
+    this.drawPagoda(ctx, 115, cfg.ringSurfaceY - 18, 1.25, 5);
+
+    // Distant center-left 3-tier pagoda
+    this.drawPagoda(ctx, 330, cfg.ringSurfaceY - 18, 0.95, 3);
+
+    // Right 4-tier pagoda framing the arena
+    this.drawPagoda(ctx, 845, cfg.ringSurfaceY - 18, 1.15, 4);
+
+    // Traditional Japanese Pine Trees (Matsu) along the horizon
+    this.drawPineTree(ctx, 55, cfg.ringSurfaceY - 18, 1.2);
+    this.drawPineTree(ctx, 175, cfg.ringSurfaceY - 18, 0.9);
+    this.drawPineTree(ctx, 385, cfg.ringSurfaceY - 18, 0.85);
+    this.drawPineTree(ctx, 785, cfg.ringSurfaceY - 18, 1.1);
+    this.drawPineTree(ctx, 905, cfg.ringSurfaceY - 18, 1.0);
 
     // 3. Hanging Festival Lanterns (Glowing red & gold)
     this.drawLantern(ctx, 80, 35, '#ff2a55');
@@ -250,5 +256,132 @@ export class ArenaRenderer {
     for (let x = 30; x < cfg.canvasWidth; x += 110) {
       ctx.fillRect(x, y - 6, 45, 8);
     }
+  }
+
+  /**
+   * Distant Majestic Mount Fuji with soft snowy peak
+   */
+  private drawMountFuji(ctx: CanvasRenderingContext2D, centerX: number, baseY: number): void {
+    ctx.save();
+    // Gentle iconic concave slopes of Mt. Fuji
+    ctx.fillStyle = 'rgba(32, 14, 55, 0.75)';
+    ctx.beginPath();
+    ctx.moveTo(centerX - 280, baseY);
+    ctx.quadraticCurveTo(centerX - 130, baseY - 35, centerX - 48, baseY - 145);
+    // Flat volcanic crater crest
+    ctx.lineTo(centerX + 48, baseY - 145);
+    ctx.quadraticCurveTo(centerX + 130, baseY - 35, centerX + 280, baseY);
+    ctx.closePath();
+    ctx.fill();
+
+    // Soft snowy crest highlight gleaming in moonlight
+    ctx.fillStyle = 'rgba(255, 240, 250, 0.14)';
+    ctx.beginPath();
+    ctx.moveTo(centerX - 48, baseY - 145);
+    ctx.lineTo(centerX + 48, baseY - 145);
+    ctx.lineTo(centerX + 70, baseY - 95);
+    ctx.lineTo(centerX - 70, baseY - 95);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  /**
+   * Traditional Japanese Pagoda Tower with multiple tiered, flared roofs and top spire (Sōrin)
+   */
+  private drawPagoda(ctx: CanvasRenderingContext2D, centerX: number, baseY: number, scale: number, numTiers: number): void {
+    ctx.save();
+    ctx.fillStyle = '#1a0b2e'; // Dark pagoda silhouette matching night sky
+
+    const tierHeight = 23 * scale;
+    const baseWidth = 58 * scale;
+    const totalHeight = numTiers * tierHeight;
+    const topRoofY = baseY - totalHeight;
+
+    // 1. Spire on top (Sōrin)
+    const spireH = 36 * scale;
+    ctx.strokeStyle = '#1a0b2e';
+    ctx.lineWidth = 2.5 * scale;
+    ctx.beginPath();
+    ctx.moveTo(centerX, topRoofY);
+    ctx.lineTo(centerX, topRoofY - spireH);
+    ctx.stroke();
+
+    // Sacred rings (Kurin) on spire
+    ctx.fillStyle = '#1a0b2e';
+    for (let r = 0; r < 5; r++) {
+      const ringY = topRoofY - (12 + r * 4.5) * scale;
+      ctx.fillRect(centerX - 4 * scale, ringY, 8 * scale, 2 * scale);
+    }
+    // Sacred jewel / teardrop (Hōju) on top of spire
+    ctx.beginPath();
+    ctx.arc(centerX, topRoofY - spireH, 3 * scale, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 2. Draw Multiple Tiered Roofs from top to bottom
+    for (let t = 0; t < numTiers; t++) {
+      // Tiers taper gracefully towards the top
+      const progress = t / (numTiers - 1 || 1); // 0 at top tier, 1 at bottom tier
+      const tierWidth = baseWidth * (0.64 + 0.36 * progress);
+      const tierY = topRoofY + t * tierHeight;
+      const roofPeakY = tierY;
+      const roofEaveY = tierY + 9 * scale;
+      const bodyWidth = tierWidth * 0.46;
+      const bodyBottomY = tierY + tierHeight;
+
+      // Tier Body / Tower Walls
+      ctx.fillRect(centerX - bodyWidth / 2, roofEaveY, bodyWidth, bodyBottomY - roofEaveY + 2);
+
+      // Flared Pagoda Roof with graceful upturned corners (Sori curves)
+      ctx.beginPath();
+      // Start at left flared tip
+      ctx.moveTo(centerX - tierWidth / 2, roofEaveY - 2.5 * scale);
+      // Curve smoothly up to center peak
+      ctx.quadraticCurveTo(centerX - tierWidth * 0.25, roofPeakY + 3.5 * scale, centerX, roofPeakY);
+      // Curve smoothly down to right flared tip
+      ctx.quadraticCurveTo(centerX + tierWidth * 0.25, roofPeakY + 3.5 * scale, centerX + tierWidth / 2, roofEaveY - 2.5 * scale);
+      // Eave thickness return
+      ctx.lineTo(centerX + tierWidth / 2 - 3 * scale, roofEaveY + 4 * scale);
+      ctx.lineTo(centerX - tierWidth / 2 + 3 * scale, roofEaveY + 4 * scale);
+      ctx.closePath();
+      ctx.fill();
+
+      // Small balcony railing under eave
+      ctx.fillRect(centerX - bodyWidth * 0.6, roofEaveY + 7 * scale, bodyWidth * 1.2, 2.5 * scale);
+    }
+
+    // Pagoda Foundation / Base
+    ctx.fillRect(centerX - baseWidth * 0.55, baseY, baseWidth * 1.1, 10 * scale);
+
+    ctx.restore();
+  }
+
+  /**
+   * Traditional Japanese Pine Tree (Matsu) with cloud-shaped evergreen foliage
+   */
+  private drawPineTree(ctx: CanvasRenderingContext2D, x: number, baseY: number, scale: number): void {
+    ctx.save();
+    ctx.fillStyle = '#130724';
+    // Curved trunk
+    ctx.beginPath();
+    ctx.moveTo(x - 3 * scale, baseY);
+    ctx.quadraticCurveTo(x + 2 * scale, baseY - 20 * scale, x - 1 * scale, baseY - 36 * scale);
+    ctx.lineTo(x + 4 * scale, baseY - 36 * scale);
+    ctx.quadraticCurveTo(x + 6 * scale, baseY - 20 * scale, x + 3 * scale, baseY);
+    ctx.closePath();
+    ctx.fill();
+
+    // Cloud-shaped pine branch clusters (matsu style)
+    const clouds = [
+      { ox: -12, oy: -28, r: 12 },
+      { ox: 14, oy: -34, r: 11 },
+      { ox: -4, oy: -42, r: 14 },
+    ];
+    for (const c of clouds) {
+      ctx.beginPath();
+      ctx.ellipse(x + c.ox * scale, baseY + c.oy * scale, c.r * 1.5 * scale, c.r * 0.75 * scale, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
   }
 }
