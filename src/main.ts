@@ -70,6 +70,7 @@ class CatSumoGame {
     const btnKeys = document.getElementById('btn-keys');
     const btnCrt = document.getElementById('btn-crt');
     const btnSound = document.getElementById('btn-sound');
+    const btnBgm = document.getElementById('btn-bgm');
     const btnFullscreen = document.getElementById('btn-fullscreen');
     const crtLayer = document.getElementById('crt-layer');
 
@@ -91,7 +92,14 @@ class CatSumoGame {
     btnSound?.addEventListener('click', () => {
       const active = this.sound.toggleMute();
       if (btnSound) {
-        btnSound.textContent = active ? 'SOUND: ON' : 'SOUND: OFF';
+        btnSound.textContent = active ? 'SFX: ON' : 'SFX: OFF';
+      }
+    });
+
+    btnBgm?.addEventListener('click', () => {
+      const active = this.sound.toggleBGM();
+      if (btnBgm) {
+        btnBgm.textContent = active ? 'BGM: ON' : 'BGM: OFF';
       }
     });
 
@@ -104,11 +112,21 @@ class CatSumoGame {
       }
     });
 
+    // Auto-start audio and BGM on very first user interaction
+    const startAudioOnUserGesture = () => {
+      this.sound.startBGM();
+      window.removeEventListener('pointerdown', startAudioOnUserGesture);
+      window.removeEventListener('keydown', startAudioOnUserGesture);
+    };
+    window.addEventListener('pointerdown', startAudioOnUserGesture);
+    window.addEventListener('keydown', startAudioOnUserGesture);
+
     // Space key / Global start input
     window.addEventListener('keydown', (e) => {
       if (this.keyModal.isOpen()) return;
 
       if (e.code === 'Space') {
+        this.sound.startBGM();
         if (this.hud.matchPhase === 'TITLE') {
           this.sound.playTaikoDon();
           this.hud.startMatch();

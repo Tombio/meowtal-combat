@@ -1,3 +1,5 @@
+import { BGMTrack } from './BGMTrack';
+
 /**
  * 90s Arcade Sound Synthesizer using pure Web Audio API.
  * Synthesizes vintage 16-bit sound effects, taiko drums, cute meows, and height-scaled impact bonks.
@@ -5,6 +7,10 @@
 export class SoundSynthesizer {
   private ctx: AudioContext | null = null;
   private isMuted: boolean = false;
+  private bgm: BGMTrack = new BGMTrack();
+  private isBGMInitialized: boolean = false;
+
+  private isBGMEnabled: boolean = true;
 
   constructor() {
     // AudioContext will be initialized on first user interaction
@@ -23,11 +29,45 @@ export class SoundSynthesizer {
     if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume();
     }
+    if (this.ctx && !this.isBGMInitialized) {
+      this.bgm.init(this.ctx);
+      this.bgm.setMuted(this.isMuted || !this.isBGMEnabled);
+      this.isBGMInitialized = true;
+    }
     return this.ctx;
+  }
+
+  public startBGM(): void {
+    if (!this.isBGMEnabled || this.isMuted) return;
+    const ctx = this.initContext();
+    if (!ctx) return;
+    this.bgm.start();
+  }
+
+  public stopBGM(): void {
+    this.bgm.stop();
+  }
+
+  public duckBGM(duck: boolean): void {
+    if (!this.isBGMEnabled) return;
+    this.bgm.duckVolume(duck);
+  }
+
+  public toggleBGM(): boolean {
+    this.isBGMEnabled = !this.isBGMEnabled;
+    this.bgm.setMuted(!this.isBGMEnabled || this.isMuted);
+    if (this.isBGMEnabled && !this.isMuted) {
+      this.startBGM();
+    }
+    return this.isBGMEnabled;
   }
 
   public toggleMute(): boolean {
     this.isMuted = !this.isMuted;
+    this.bgm.setMuted(this.isMuted || !this.isBGMEnabled);
+    if (!this.isMuted && this.isBGMEnabled) {
+      this.startBGM();
+    }
     return !this.isMuted;
   }
 
@@ -233,6 +273,9 @@ export class SoundSynthesizer {
     const ctx = this.initContext();
     if (!ctx) return;
 
+    this.duckBGM(true);
+    setTimeout(() => this.duckBGM(false), 1800);
+
     const now = ctx.currentTime;
 
     // Falling pitch slide
@@ -263,6 +306,9 @@ export class SoundSynthesizer {
     if (this.isMuted) return;
     const ctx = this.initContext();
     if (!ctx) return;
+
+    this.duckBGM(true);
+    setTimeout(() => this.duckBGM(false), 2400);
 
     const notes = [261.63, 329.63, 392.0, 523.25, 659.25, 783.99]; // C E G C E G
     const timings = [0, 0.1, 0.2, 0.32, 0.44, 0.6];
