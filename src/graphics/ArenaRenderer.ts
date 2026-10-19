@@ -64,9 +64,6 @@ export class ArenaRenderer {
     this.drawLantern(ctx, cfg.canvasWidth - 240, 45, '#ffaa00');
     this.drawLantern(ctx, cfg.canvasWidth - 80, 35, '#ff2a55');
 
-    // 4. Cheering Cat Spectator Silhouettes in Background
-    this.drawSpectators(ctx, cfg);
-
     // 5. Pit Below the Platform (Dark abyss / fall zone)
     ctx.fillStyle = '#0d0417';
     ctx.fillRect(0, cfg.ringSurfaceY + cfg.ringThickness, cfg.canvasWidth, cfg.canvasHeight - (cfg.ringSurfaceY + cfg.ringThickness));
@@ -161,44 +158,6 @@ export class ArenaRenderer {
     ctx.fillText('猫', 0, 20);
 
     ctx.restore();
-  }
-
-  private drawSpectators(ctx: CanvasRenderingContext2D, cfg: { canvasWidth: number; ringSurfaceY: number }): void {
-    ctx.fillStyle = '#1c0e2d';
-    const numCats = 14;
-    const spacing = cfg.canvasWidth / numCats;
-
-    for (let i = 0; i < numCats; i++) {
-      const sx = i * spacing + 18;
-      const bob = Math.sin(this.animTimer * 0.12 + i * 1.3) * 4;
-      const sy = cfg.ringSurfaceY - 14 + bob;
-
-      // Cat head silhouette
-      ctx.beginPath();
-      ctx.arc(sx, sy, 11, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Cute pointy silhouette ears
-      ctx.beginPath();
-      ctx.moveTo(sx - 9, sy - 4);
-      ctx.lineTo(sx - 12, sy - 17);
-      ctx.lineTo(sx - 2, sy - 9);
-      ctx.fill();
-
-      ctx.beginPath();
-      ctx.moveTo(sx + 2, sy - 9);
-      ctx.lineTo(sx + 12, sy - 17);
-      ctx.lineTo(sx + 9, sy - 4);
-      ctx.fill();
-
-      // Cheering raised paws
-      if (i % 2 === 0) {
-        ctx.beginPath();
-        ctx.arc(sx - 13, sy - 12, 4, 0, Math.PI * 2);
-        ctx.arc(sx + 13, sy - 12, 4, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
   }
 
   private drawShimenawa(ctx: CanvasRenderingContext2D, x: number, y: number, width: number): void {
