@@ -2,6 +2,8 @@ import { Arena } from '../src/entities/Arena';
 import { Cat } from '../src/entities/Cat';
 import { CollisionEngine } from '../src/engine/Collision';
 import { SoundSynthesizer } from '../src/audio/SoundSynthesizer';
+import { InputManager } from '../src/engine/InputManager';
+import { NetworkManager } from '../src/network/NetworkManager';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -142,5 +144,48 @@ assert(trackR3.includes('124 BPM'), 'Round 3 switches to 124 BPM Tokyo Metropoli
 const manualNext = soundMock.nextTrack();
 console.log(`Manual Next Track: ${manualNext}`);
 assert(manualNext.includes('144 BPM'), 'Next track advances to 144 BPM Final Climax Rave');
+
+console.log('\n--- 8. Testing Mobile Touch Controls & Virtual Input Integration ---');
+const inputMgr = new InputManager();
+
+// Test virtual touch pressing
+assert(!inputMgr.isDown('p1', 'left'), 'P1 left is initially not down');
+assert(!inputMgr.isJustPressed('p1', 'left'), 'P1 left is initially not just pressed');
+
+inputMgr.setVirtualAction('p1', 'left', true);
+assert(inputMgr.isDown('p1', 'left'), 'P1 left is down after touch button press');
+assert(inputMgr.isJustPressed('p1', 'left'), 'P1 left triggers isJustPressed on touch start');
+
+// Frame update: justPressed should clear, isDown should remain held
+inputMgr.update();
+assert(inputMgr.isDown('p1', 'left'), 'P1 left remains held across frame update');
+assert(!inputMgr.isJustPressed('p1', 'left'), 'P1 left justPressed is cleared on next frame');
+
+// Touch release
+inputMgr.setVirtualAction('p1', 'left', false);
+assert(!inputMgr.isDown('p1', 'left'), 'P1 left is released after touch end');
+
+// Test Jump button touch
+inputMgr.setVirtualAction('p1', 'jump', true);
+assert(inputMgr.isDown('p1', 'jump') && inputMgr.isJustPressed('p1', 'jump'), 'Touch jump button activates jump');
+inputMgr.update();
+inputMgr.setVirtualAction('p1', 'jump', false);
+assert(!inputMgr.isDown('p1', 'jump'), 'Touch jump button releases cleanly');
+
+console.log('\n--- 9. Testing Online Room Code Generation & WhatsApp Share URLs ---');
+const netMgr = new NetworkManager();
+const roomCode = netMgr.generateRoomCode();
+console.log(`Generated room code: ${roomCode}`);
+assert(roomCode.startsWith('cat-'), 'Room code begins with cat- prefix');
+assert(roomCode.length >= 7, 'Room code has sufficient randomness length');
+
+const shareUrl = netMgr.getShareUrl(roomCode);
+console.log(`Share URL: ${shareUrl}`);
+assert(shareUrl.includes(`#room=${roomCode}`), 'Share URL contains #room=<uuid> hash');
+
+const waUrl = netMgr.getWhatsAppShareUrl(roomCode);
+console.log(`WhatsApp URL: ${waUrl}`);
+assert(waUrl.startsWith('https://api.whatsapp.com/send?text='), 'WhatsApp URL starts with API schema');
+assert(waUrl.includes(encodeURIComponent(shareUrl)), 'WhatsApp URL encodes room share link');
 
 console.log('\n🎉 ALL GAMEPLAY SIMULATION TESTS PASSED!\n');

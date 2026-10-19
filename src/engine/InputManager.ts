@@ -25,20 +25,32 @@ export class InputManager {
   private heldKeys: Set<string> = new Set();
   private justPressedKeys: Set<string> = new Set();
   private listeningForRebind: { player: PlayerId; action: ActionType; callback: (keyName: string) => void } | null = null;
+  private virtualDown: Record<PlayerId, Record<ActionType, boolean>> = {
+    p1: { left: false, right: false, jump: false },
+    p2: { left: false, right: false, jump: false },
+  };
+  private virtualJustPressed: Record<PlayerId, Record<ActionType, boolean>> = {
+    p1: { left: false, right: false, jump: false },
+    p2: { left: false, right: false, jump: false },
+  };
 
   constructor() {
     this.keyMap = this.loadKeyMap();
-    window.addEventListener('keydown', (e) => this.handleKeyDown(e));
-    window.addEventListener('keyup', (e) => this.handleKeyUp(e));
+    if (typeof window !== 'undefined') {
+      window.addEventListener('keydown', (e) => this.handleKeyDown(e));
+      window.addEventListener('keyup', (e) => this.handleKeyUp(e));
+    }
   }
 
   private loadKeyMap(): Record<PlayerId, KeyMap> {
     try {
-      const saved = localStorage.getItem('cat_sumo_keymap');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.p1 && parsed.p2) {
-          return parsed;
+      if (typeof localStorage !== 'undefined') {
+        const saved = localStorage.getItem('cat_sumo_keymap');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.p1 && parsed.p2) {
+            return parsed;
+          }
         }
       }
     } catch {
@@ -49,7 +61,9 @@ export class InputManager {
 
   public saveKeyMap(): void {
     try {
-      localStorage.setItem('cat_sumo_keymap', JSON.stringify(this.keyMap));
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('cat_sumo_keymap', JSON.stringify(this.keyMap));
+      }
     } catch {
       // ignore
     }
@@ -104,14 +118,33 @@ export class InputManager {
     this.heldKeys.delete(e.code);
   }
 
+  public setVirtualAction(player: PlayerId, action: ActionType, isDown: boolean): void {
+    if (isDown) {
+      if (!this.virtualDown[player][action]) {
+        this.virtualJustPressed[player][action] = true;
+      }
+      this.virtualDown[player][action] = true;
+    } else {
+      this.virtualDown[player][action] = false;
+    }
+  }
+
+  public getPlayerActions(player: PlayerId): { left: boolean; right: boolean; jump: boolean } {
+    return {
+      left: this.isDown(player, 'left'),
+      right: this.isDown(player, 'right'),
+      jump: this.isDown(player, 'jump'),
+    };
+  }
+
   public isDown(player: PlayerId, action: ActionType): boolean {
     const code = this.keyMap[player][action];
-    return this.heldKeys.has(code);
+    return this.heldKeys.has(code) || !!this.virtualDown[player][action];
   }
 
   public isJustPressed(player: PlayerId, action: ActionType): boolean {
     const code = this.keyMap[player][action];
-    return this.justPressedKeys.has(code);
+    return this.justPressedKeys.has(code) || !!this.virtualJustPressed[player][action];
   }
 
   /**
@@ -119,6 +152,12 @@ export class InputManager {
    */
   public update(): void {
     this.justPressedKeys.clear();
+    this.virtualJustPressed.p1.left = false;
+    this.virtualJustPressed.p1.right = false;
+    this.virtualJustPressed.p1.jump = false;
+    this.virtualJustPressed.p2.left = false;
+    this.virtualJustPressed.p2.right = false;
+    this.virtualJustPressed.p2.jump = false;
   }
 
   public getDisplayKeyName(code: string): string {

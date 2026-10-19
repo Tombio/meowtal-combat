@@ -275,7 +275,178 @@
 
     @keyframes pulse {
       from { transform: scale(1); }
-      to { transform: scale(1.08); }
+    /* Online Modal */
+    #online-modal {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(8, 4, 16, 0.94);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 60;
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .online-box {
+      border-color: #00f0ff;
+      box-shadow: 0 0 30px rgba(0, 240, 255, 0.4);
+    }
+
+    .online-status-neutral {
+      font-size: 8px;
+      color: #ffe600;
+      margin-bottom: 12px;
+    }
+
+    .online-status-waiting {
+      font-size: 8px;
+      color: #00f0ff;
+      margin-bottom: 12px;
+      animation: pulse 1s infinite alternate;
+    }
+
+    .online-status-connected {
+      font-size: 9px;
+      color: #00ff88;
+      margin-bottom: 12px;
+      text-shadow: 0 0 8px #00ff88;
+    }
+
+    .btn-whatsapp {
+      background: linear-gradient(180deg, #25d366, #128c7e) !important;
+      border-color: #25d366 !important;
+      box-shadow: 0 3px 0 #075e54 !important;
+      color: #fff !important;
+    }
+
+    .online-pulse-indicator {
+      font-size: 8px;
+      color: #aaa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      background: #00f0ff;
+      border-radius: 50%;
+      display: inline-block;
+      box-shadow: 0 0 8px #00f0ff;
+      animation: pulse 0.8s infinite alternate;
+    }
+
+    /* Virtual Touch Controls */
+    #touch-controls-container {
+      display: none;
+      width: 100%;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      margin-top: 6px;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .touch-cluster {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .touch-arcade-btn {
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      width: 66px;
+      height: 66px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #ff4081, #c51162);
+      border: 3px solid #ff80ab;
+      color: #fff;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 0 #880e4f, 0 0 16px rgba(255, 64, 129, 0.4);
+      cursor: pointer;
+      transition: transform 0.05s ease, box-shadow 0.05s ease;
+    }
+
+    .touch-arcade-btn:active, .touch-arcade-btn.active {
+      transform: translateY(4px);
+      box-shadow: 0 2px 0 #880e4f, 0 0 24px rgba(255, 64, 129, 0.8);
+      background: radial-gradient(circle at 35% 35%, #ff80ab, #ff4081);
+    }
+
+    .touch-arcade-btn.jump-btn {
+      width: 86px;
+      height: 86px;
+      background: radial-gradient(circle at 35% 35%, #00e5ff, #0091ea);
+      border-color: #80d8ff;
+      box-shadow: 0 6px 0 #01579b, 0 0 20px rgba(0, 229, 255, 0.4);
+    }
+
+    .touch-arcade-btn.jump-btn:active, .touch-arcade-btn.jump-btn.active {
+      transform: translateY(4px);
+      box-shadow: 0 2px 0 #01579b, 0 0 30px rgba(0, 229, 255, 0.8);
+      background: radial-gradient(circle at 35% 35%, #80d8ff, #00e5ff);
+    }
+
+    .jump-icon {
+      font-size: 22px;
+      line-height: 1;
+      margin-bottom: 2px;
+    }
+
+    .jump-label {
+      font-size: 8px;
+      letter-spacing: 1px;
+    }
+
+    /* Responsive Mobile Tweaks */
+    @media (max-width: 900px) {
+      #cabinet-container {
+        padding: 4px;
+        border-width: 3px;
+        width: 100vw;
+        max-width: 100vw;
+      }
+      #marquee h1 {
+        font-size: 11px;
+      }
+      #marquee .sub-tag {
+        font-size: 7px;
+      }
+      #control-bar {
+        flex-wrap: wrap;
+        justify-content: center;
+        font-size: 8px;
+      }
+      .arcade-btn {
+        font-size: 7px;
+        padding: 4px 6px;
+      }
+      .touch-arcade-btn {
+        width: 58px;
+        height: 58px;
+        font-size: 16px;
+      }
+      .touch-arcade-btn.jump-btn {
+        width: 74px;
+        height: 74px;
+      }
     }
   </style>
 </head>
@@ -315,6 +486,61 @@
           </div>
         </div>
       </div>
+
+      <!-- Online P2P Modal inside screen -->
+      <div id="online-modal">
+        <div class="modal-box online-box">
+          <div class="modal-title">🌐 ONLINE P2P BATTLE 🌐</div>
+          <div id="online-status-text" class="online-status-neutral">HOST A ROOM OR JOIN VIA LINK</div>
+
+          <div id="online-initial-section">
+            <div style="margin: 16px 0; display: flex; flex-direction: column; gap: 12px; align-items: center;">
+              <button id="btn-host-room" class="arcade-btn" style="font-size: 10px; padding: 12px 20px; background: linear-gradient(180deg, #ff007f, #b30059);">★ CREATE NEW ROOM ★</button>
+              <div style="font-size: 8px; color: #aaa;">- OR JOIN ROOM -</div>
+              <div style="display: flex; gap: 8px; width: 100%; max-width: 360px;">
+                <input id="online-room-input" type="text" placeholder="Room Code or Paste Link" style="flex: 1; background: #271442; border: 2px solid #bb86fc; color: #ffe600; font-family: inherit; font-size: 8px; padding: 8px; border-radius: 4px;" />
+                <button id="btn-join-room" class="arcade-btn secondary">JOIN</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="online-share-section" style="display: none;">
+            <div style="background: #271442; border: 2px dashed #00f0ff; border-radius: 6px; padding: 10px; margin: 12px 0;">
+              <div style="font-size: 7px; color: #aaa; margin-bottom: 4px;">ROOM CODE:</div>
+              <div id="online-room-code" style="font-size: 15px; color: #00f0ff; letter-spacing: 2px;">cat-xxxx</div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px; align-items: center; margin-bottom: 12px;">
+              <a id="btn-whatsapp-share" class="arcade-btn btn-whatsapp" href="#" target="_blank" style="text-decoration: none; width: 100%; max-width: 300px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+                <span>💬</span> SHARE ON WHATSAPP
+              </a>
+              <button id="btn-copy-link" class="arcade-btn secondary" style="width: 100%; max-width: 300px;">
+                📋 COPY INVITE LINK
+              </button>
+            </div>
+            <div class="online-pulse-indicator">
+              <span class="pulse-dot"></span> WAITING FOR OPPONENT...
+            </div>
+          </div>
+
+          <div style="margin-top: 12px;">
+            <button id="btn-close-online" class="arcade-btn secondary">CLOSE [ESC]</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Virtual Touch Controls for Mobile / Tablets -->
+    <div id="touch-controls-container">
+      <div class="touch-cluster">
+        <button id="touch-btn-left" class="touch-arcade-btn" aria-label="Waddle Left">◀</button>
+        <button id="touch-btn-right" class="touch-arcade-btn" aria-label="Waddle Right">▶</button>
+      </div>
+      <div class="touch-cluster">
+        <button id="touch-btn-jump" class="touch-arcade-btn jump-btn" aria-label="Jump or Bonk">
+          <span class="jump-icon">🐾</span>
+          <span class="jump-label">JUMP</span>
+        </button>
+      </div>
     </div>
 
     <div id="control-bar">
@@ -323,8 +549,10 @@
         <span>|</span>
         <span class="badge-p2">P2 (Black Kuro): [Arrows]</span>
       </div>
-      <div style="display: flex; gap: 6px;">
-        <button id="btn-keys" class="arcade-btn secondary">CONTROLS</button>
+      <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+        <button id="btn-online" class="arcade-btn" style="background: linear-gradient(180deg, #00e5ff, #0091ea); border-color: #80d8ff;">🌐 ONLINE</button>
+        <button id="btn-touch" class="arcade-btn secondary">🎮 TOUCH</button>
+        <button id="btn-keys" class="arcade-btn secondary">KEYS</button>
         <button id="btn-crt" class="arcade-btn secondary">CRT ON</button>
         <button id="btn-sound" class="arcade-btn">SFX: ON</button>
         <button id="btn-bgm" class="arcade-btn">BGM: ON</button>

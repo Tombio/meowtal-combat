@@ -8,6 +8,9 @@ import { ArenaRenderer } from './graphics/ArenaRenderer';
 import { EffectsRenderer } from './graphics/EffectsRenderer';
 import { ArcadeHUD } from './ui/ArcadeHUD';
 import { KeyConfigModal } from './ui/KeyConfigModal';
+import { TouchController } from './ui/TouchController';
+import { NetworkManager, PlayerInputPacket, NetworkStateSnapshot } from './network/NetworkManager';
+import { OnlineModal } from './ui/OnlineModal';
 
 class CatSumoGame {
   private canvas: HTMLCanvasElement;
@@ -23,11 +26,15 @@ class CatSumoGame {
   private effects: EffectsRenderer;
   private hud: ArcadeHUD;
   private keyModal: KeyConfigModal;
+  private touchController: TouchController;
+  private network: NetworkManager;
+  private onlineModal: OnlineModal;
 
   private isRunning: boolean = true;
   private lastTime: number = 0;
   private accumulator: number = 0;
   private readonly fixedStep: number = 1000 / 60; // 60 FPS fixed physics
+  private tickCount: number = 0;
 
   constructor() {
     this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -58,21 +65,39 @@ class CatSumoGame {
     this.effects = new EffectsRenderer();
     this.hud = new ArcadeHUD();
     this.keyModal = new KeyConfigModal(this.input);
+    this.touchController = new TouchController(this.input);
+    this.network = new NetworkManager();
+    this.onlineModal = new OnlineModal(this.network, () => this.handleOnlineGameStart());
 
     this.initControls();
+    this.initNetworkSync();
     this.resetCatsForRound();
+    this.checkUrlRoomHash();
 
     requestAnimationFrame((t) => this.gameLoop(t));
   }
 
   private initControls(): void {
     // Toolbar buttons
+    const btnOnline = document.getElementById('btn-online');
+    const btnTouch = document.getElementById('btn-touch');
     const btnKeys = document.getElementById('btn-keys');
     const btnCrt = document.getElementById('btn-crt');
     const btnSound = document.getElementById('btn-sound');
     const btnBgm = document.getElementById('btn-bgm');
     const btnFullscreen = document.getElementById('btn-fullscreen');
     const crtLayer = document.getElementById('crt-layer');
+
+    btnOnline?.addEventListener('click', () => {
+      this.onlineModal.open();
+    });
+
+    btnTouch?.addEventListener('click', () => {
+      const isNowVisible = this.touchController.toggle();
+      if (btnTouch) {
+        btnTouch.textContent = isNowVisible ? 'TOUCH ON' : 'TOUCH OFF';
+      }
+    });
 
     btnKeys?.addEventListener('click', () => {
       this.keyModal.toggle();
@@ -129,7 +154,7 @@ class CatSumoGame {
 
     // Space key / Global start input
     window.addEventListener('keydown', (e) => {
-      if (this.keyModal.isOpen()) return;
+      if (this.keyModal.isOpen() || this.onlineModal.isOpen()) return;
 
       if (e.code === 'Space') {
         this.sound.startBGM();
@@ -146,6 +171,77 @@ class CatSumoGame {
         }
       }
     });
+  }
+
+  private checkUrlRoomHash(): void {
+    if (window.location.hash) {
+      const match = window.location.hash.match(/room=([a-zA-Z0-9-]+)/);
+      if (match && match[1]) {
+        const roomId = match[1];
+        setTimeout(() => {
+          this.onlineModal.open(roomId);
+        }, 300);
+      }
+    }
+  }
+
+  private initNetworkSync(): void {
+    this.network.onRemoteInputReceived = (packet: PlayerInputPacket) => {
+      if (this.network.isHost()) {
+        // Host applies remote guest inputs to Kuro (P2)
+        this.input.setVirtualAction('p2', 'left', packet.left);
+        this.input.setVirtualAction('p2', 'right', packet.right);
+        this.input.setVirtualAction('p2', 'jump', packet.jump);
+      }
+    };
+
+    this.network.onRemoteStateReceived = (state: NetworkStateSnapshot) => {
+      if (!this.network.isHost()) {
+        // Guest receives Host's authoritative state
+        this.p1.x = state.p1.x;
+        this.p1.y = state.p1.y;
+        this.p1.vx = state.p1.vx;
+        this.p1.vy = state.p1.vy;
+        this.p1.state = state.p1.state as any;
+        this.p1.facing = state.p1.facing as any;
+
+        this.p2.x = state.p2.x;
+        this.p2.y = state.p2.y;
+        this.p2.vx = state.p2.vx;
+        this.p2.vy = state.p2.vy;
+        this.p2.state = state.p2.state as any;
+        this.p2.facing = state.p2.facing as any;
+
+        this.p1.roundsWon = state.p1Wins;
+        this.p2.roundsWon = state.p2Wins;
+        this.hud.currentRound = state.currentRound;
+
+        if (this.hud.matchPhase !== state.matchPhase) {
+          this.hud.matchPhase = state.matchPhase as any;
+          if (state.matchPhase === 'ROUND_INTRO') {
+            this.sound.playTaikoDon();
+          } else if (state.matchPhase === 'ROUND_OVER') {
+            this.sound.playRingOut();
+          }
+        }
+      }
+    };
+  }
+
+  private handleOnlineGameStart(): void {
+    this.sound.startBGM();
+    this.sound.playTaikoDon();
+
+    if (this.network.isHost()) {
+      this.touchController.setActivePlayer('p1');
+    } else {
+      this.touchController.setActivePlayer('p2');
+    }
+
+    this.p1.roundsWon = 0;
+    this.p2.roundsWon = 0;
+    this.hud.startMatch();
+    this.resetCatsForRound();
   }
 
   private resetCatsForRound(): void {
@@ -229,99 +325,144 @@ class CatSumoGame {
 
     // Active Fight Phase
     if (this.hud.matchPhase === 'FIGHT') {
-      // 1. Process Jump Inputs (Edge-triggered for jump sound & spring)
-      if (this.input.isJustPressed('p1', 'jump') && this.p1.isGrounded) {
-        this.p1.jump();
-        this.sound.playJump();
-      }
-      if (this.input.isJustPressed('p2', 'jump') && this.p2.isGrounded) {
-        this.p2.jump();
-        this.sound.playJump();
-      }
+      const isOnlineGuest = this.network.isConnected() && !this.network.isHost();
 
-      // 2. Update Cat Locomotion & Physics
-      this.p1.updatePhysics(
-        this.arena,
-        this.input.isDown('p1', 'left'),
-        this.input.isDown('p1', 'right'),
-        this.input.isDown('p1', 'jump'),
-        this.p2.x
-      );
+      // In online guest mode, send local inputs to host
+      if (isOnlineGuest) {
+        this.network.sendInputs({
+          seq: this.tickCount++,
+          left: this.input.isDown('p2', 'left'),
+          right: this.input.isDown('p2', 'right'),
+          jump: this.input.isDown('p2', 'jump'),
+        });
 
-      this.p2.updatePhysics(
-        this.arena,
-        this.input.isDown('p2', 'left'),
-        this.input.isDown('p2', 'right'),
-        this.input.isDown('p2', 'jump'),
-        this.p1.x
-      );
-
-      // Dust generation
-      if (this.p1.dustParticlesToSpawn > 0) {
-        this.effects.addDust(this.p1.x + this.p1.width / 2, this.p1.y + this.p1.height, this.p1.dustParticlesToSpawn);
-        this.p1.dustParticlesToSpawn = 0;
-      }
-      if (this.p2.dustParticlesToSpawn > 0) {
-        this.effects.addDust(this.p2.x + this.p2.width / 2, this.p2.y + this.p2.height, this.p2.dustParticlesToSpawn);
-        this.p2.dustParticlesToSpawn = 0;
-      }
-
-      // 3. Collision & Height Bump Resolution
-      const bumpEvent = this.collisionEngine.checkAndResolveCats(this.p1, this.p2);
-      if (bumpEvent) {
-        const isMega = bumpEvent.heightDelta > 26;
-        this.effects.addComicPopup(bumpEvent.comicText, bumpEvent.contactX, bumpEvent.contactY - 20, isMega);
-        this.effects.triggerScreenShake(bumpEvent.shakeMagnitude);
-        if (bumpEvent.heightDelta > 15) {
-          this.effects.triggerHitStop(isMega ? 3 : 1);
+        if (this.input.isJustPressed('p2', 'jump') && this.p2.isGrounded) {
+          this.sound.playJump();
         }
-      }
+      } else {
+        // Host or Local: Process Jump Inputs
+        if (this.input.isJustPressed('p1', 'jump') && this.p1.isGrounded) {
+          this.p1.jump();
+          this.sound.playJump();
+        }
+        if (this.input.isJustPressed('p2', 'jump') && this.p2.isGrounded) {
+          this.p2.jump();
+          this.sound.playJump();
+        }
 
-      // 4. Ring Out & Time Over Check
-      let roundOverWinner: Cat | null = null;
-      let roundOverLoser: Cat | null = null;
+        // Update Cat Locomotion & Physics
+        this.p1.updatePhysics(
+          this.arena,
+          this.input.isDown('p1', 'left'),
+          this.input.isDown('p1', 'right'),
+          this.input.isDown('p1', 'jump'),
+          this.p2.x
+        );
 
-      if (this.p1.state === 'RING_OUT') {
-        roundOverWinner = this.p2;
-        roundOverLoser = this.p1;
-      } else if (this.p2.state === 'RING_OUT') {
-        roundOverWinner = this.p1;
-        roundOverLoser = this.p2;
-      } else if (this.hud.matchTimer <= 0) {
-        // Time out: closest to ring center wins
-        const ringCenter = (this.arena.config.ringLeft + this.arena.config.ringRight) / 2;
-        const dist1 = Math.abs(this.p1.x + this.p1.width / 2 - ringCenter);
-        const dist2 = Math.abs(this.p2.x + this.p2.width / 2 - ringCenter);
-        if (dist1 < dist2) {
-          roundOverWinner = this.p1;
-          roundOverLoser = this.p2;
-        } else {
+        this.p2.updatePhysics(
+          this.arena,
+          this.input.isDown('p2', 'left'),
+          this.input.isDown('p2', 'right'),
+          this.input.isDown('p2', 'jump'),
+          this.p1.x
+        );
+
+        // Dust generation
+        if (this.p1.dustParticlesToSpawn > 0) {
+          this.effects.addDust(this.p1.x + this.p1.width / 2, this.p1.y + this.p1.height, this.p1.dustParticlesToSpawn);
+          this.p1.dustParticlesToSpawn = 0;
+        }
+        if (this.p2.dustParticlesToSpawn > 0) {
+          this.effects.addDust(this.p2.x + this.p2.width / 2, this.p2.y + this.p2.height, this.p2.dustParticlesToSpawn);
+          this.p2.dustParticlesToSpawn = 0;
+        }
+
+        // Collision & Height Bump Resolution
+        const bumpEvent = this.collisionEngine.checkAndResolveCats(this.p1, this.p2);
+        if (bumpEvent) {
+          const isMega = bumpEvent.heightDelta > 26;
+          this.effects.addComicPopup(bumpEvent.comicText, bumpEvent.contactX, bumpEvent.contactY - 20, isMega);
+          this.effects.triggerScreenShake(bumpEvent.shakeMagnitude);
+          if (bumpEvent.heightDelta > 15) {
+            this.effects.triggerHitStop(isMega ? 3 : 1);
+          }
+        }
+
+        // Ring Out & Time Over Check
+        let roundOverWinner: Cat | null = null;
+        let roundOverLoser: Cat | null = null;
+
+        if (this.p1.state === 'RING_OUT') {
           roundOverWinner = this.p2;
           roundOverLoser = this.p1;
+        } else if (this.p2.state === 'RING_OUT') {
+          roundOverWinner = this.p1;
+          roundOverLoser = this.p2;
+        } else if (this.hud.matchTimer <= 0) {
+          // Time out: closest to ring center wins
+          const ringCenter = (this.arena.config.ringLeft + this.arena.config.ringRight) / 2;
+          const dist1 = Math.abs(this.p1.x + this.p1.width / 2 - ringCenter);
+          const dist2 = Math.abs(this.p2.x + this.p2.width / 2 - ringCenter);
+          if (dist1 < dist2) {
+            roundOverWinner = this.p1;
+            roundOverLoser = this.p2;
+          } else {
+            roundOverWinner = this.p2;
+            roundOverLoser = this.p1;
+          }
         }
-      }
 
-      if (roundOverWinner && roundOverLoser) {
-        this.sound.playRingOut();
-        roundOverWinner.state = 'CELEBRATING';
-        this.hud.triggerRoundOver(roundOverLoser, roundOverWinner);
-        this.effects.triggerScreenShake(8);
+        if (roundOverWinner && roundOverLoser) {
+          this.sound.playRingOut();
+          roundOverWinner.state = 'CELEBRATING';
+          this.hud.triggerRoundOver(roundOverLoser, roundOverWinner);
+          this.effects.triggerScreenShake(8);
 
-        // Check if tournament won
-        if (roundOverWinner.roundsWon >= this.hud.maxRoundsToWin) {
-          setTimeout(() => {
-            this.sound.playVictoryFanfare();
-          }, 800);
+          // Check if tournament won
+          if (roundOverWinner.roundsWon >= this.hud.maxRoundsToWin) {
+            setTimeout(() => {
+              this.sound.playVictoryFanfare();
+            }, 800);
+          }
+        }
+
+        // If online host, broadcast authoritative snapshot
+        if (this.network.isConnected() && this.network.isHost()) {
+          this.network.sendState({
+            tick: this.tickCount++,
+            p1: { x: this.p1.x, y: this.p1.y, vx: this.p1.vx, vy: this.p1.vy, state: this.p1.state, facing: this.p1.facing },
+            p2: { x: this.p2.x, y: this.p2.y, vx: this.p2.vx, vy: this.p2.vy, state: this.p2.state, facing: this.p2.facing },
+            matchPhase: this.hud.matchPhase,
+            currentRound: this.hud.currentRound,
+            phaseTimer: this.hud.phaseTimer,
+            p1Wins: this.p1.roundsWon,
+            p2Wins: this.p2.roundsWon,
+          });
         }
       }
     } else if (this.hud.matchPhase === 'ROUND_OVER') {
-      // Continue gravity for fallen cat during round over
-      this.p1.updatePhysics(this.arena, false, false, false, this.p2.x);
-      this.p2.updatePhysics(this.arena, false, false, false, this.p1.x);
+      if (!this.network.isConnected() || this.network.isHost()) {
+        // Continue gravity for fallen cat during round over
+        this.p1.updatePhysics(this.arena, false, false, false, this.p2.x);
+        this.p2.updatePhysics(this.arena, false, false, false, this.p1.x);
 
-      // Check if transitioning to next round
-      if (this.hud.phaseTimer === 1 && this.hud.winnerCat && this.hud.winnerCat.roundsWon < this.hud.maxRoundsToWin) {
-        this.resetCatsForRound();
+        // Check if transitioning to next round
+        if (this.hud.phaseTimer === 1 && this.hud.winnerCat && this.hud.winnerCat.roundsWon < this.hud.maxRoundsToWin) {
+          this.resetCatsForRound();
+        }
+
+        if (this.network.isConnected() && this.network.isHost()) {
+          this.network.sendState({
+            tick: this.tickCount++,
+            p1: { x: this.p1.x, y: this.p1.y, vx: this.p1.vx, vy: this.p1.vy, state: this.p1.state, facing: this.p1.facing },
+            p2: { x: this.p2.x, y: this.p2.y, vx: this.p2.vx, vy: this.p2.vy, state: this.p2.state, facing: this.p2.facing },
+            matchPhase: this.hud.matchPhase,
+            currentRound: this.hud.currentRound,
+            phaseTimer: this.hud.phaseTimer,
+            p1Wins: this.p1.roundsWon,
+            p2Wins: this.p2.roundsWon,
+          });
+        }
       }
     }
 
@@ -355,6 +496,17 @@ class CatSumoGame {
 
     // 4. Draw Arcade HUD & Announcements
     this.hud.draw(this.ctx, this.p1, this.p2, width, height);
+
+    // 5. Draw Online Status Badge if active
+    if (this.network.isConnected()) {
+      this.ctx.save();
+      this.ctx.fillStyle = '#00f0ff';
+      this.ctx.font = '8px "Press Start 2P", monospace';
+      this.ctx.textAlign = 'right';
+      const roleText = this.network.isHost() ? 'P1 (HOST)' : 'P2 (GUEST)';
+      this.ctx.fillText(`🌐 ONLINE: ${roleText} [${this.network.getRoomId()}]`, width - 16, 22);
+      this.ctx.restore();
+    }
 
     this.ctx.restore();
   }
