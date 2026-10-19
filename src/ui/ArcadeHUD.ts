@@ -311,16 +311,16 @@ export class ArcadeHUD {
     ctx.textAlign = 'center';
 
     // Title
-    ctx.font = '34px "Press Start 2P", monospace';
+    ctx.font = '36px "Press Start 2P", monospace';
     ctx.fillStyle = '#ffe600';
     ctx.shadowColor = '#ff007f';
     ctx.shadowBlur = 20;
-    ctx.fillText('CHONKY CAT SUMO', width / 2, height / 2 - 110);
+    ctx.fillText('MEOWTAL COMBAT', width / 2, height / 2 - 110);
 
     ctx.font = '14px "Press Start 2P", monospace';
     ctx.fillStyle = '#00f0ff';
     ctx.shadowBlur = 10;
-    ctx.fillText('★ 2-PLAYER DOHYO BRAWL ★', width / 2, height / 2 - 70);
+    ctx.fillText('★ 2-PLAYER CHONKY DOHYO CLASH ★', width / 2, height / 2 - 70);
 
     // Instructions Box
     ctx.fillStyle = 'rgba(38, 18, 64, 0.85)';
