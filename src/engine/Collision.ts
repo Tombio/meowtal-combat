@@ -109,22 +109,22 @@ export class CollisionEngine {
     const pushDirection = (higherCat.x <= lowerCat.x) ? 1 : -1;
 
     // Pushback scales with height delta
-    // Base knockback = 5.2, scales up to ~14.0+ on high aerial dives!
-    const baseKnockback = 5.2;
-    const knockbackScaling = 0.22;
-    const totalKnockback = Math.min(baseKnockback + absDeltaY * knockbackScaling, 15.0);
+    // Balanced so Mega Bonks are impactful, but do not one-shot from the center
+    const baseKnockback = 3.6;
+    const knockbackScaling = 0.11;
+    const totalKnockback = Math.min(baseKnockback + absDeltaY * knockbackScaling, 7.8);
 
-    // Stun duration scales with height delta (14 frames to ~35 frames)
-    const dazeFrames = Math.min(14 + Math.floor(absDeltaY * 0.55), 36);
+    // Stun duration scales with height delta (12 frames to 22 frames)
+    const dazeFrames = Math.min(12 + Math.floor(absDeltaY * 0.32), 22);
 
     // Apply knockback to lower cat
-    lowerCat.applyKnockback(pushDirection * totalKnockback, -2.8, dazeFrames);
+    lowerCat.applyKnockback(pushDirection * totalKnockback, -2.4, dazeFrames);
 
     // Higher cat gets a rewarding upward pounce rebound
     higherCat.pounceBounce();
 
-    // Separate positions so they don't immediately re-collide
-    lowerCat.x += pushDirection * 8;
+    // Separate positions slightly so they don't immediately re-collide
+    lowerCat.x += pushDirection * 4;
 
     this.lastCollisionTime = now;
 

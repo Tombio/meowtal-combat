@@ -151,8 +151,8 @@ export class Cat {
     if (this.dazeTimer > 0) {
       this.dazeTimer--;
       this.state = 'DAZED';
-      // High sliding friction while dazed
-      this.vx *= 0.94;
+      // Balanced sliding friction while dazed
+      this.vx *= 0.89;
     } else {
       // Player Movement controls (only when not dazed)
       const accel = this.isGrounded ? 0.72 : 0.45;

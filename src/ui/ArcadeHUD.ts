@@ -10,7 +10,7 @@ export type MatchPhase =
 export class ArcadeHUD {
   public matchPhase: MatchPhase = 'TITLE';
   public currentRound: number = 1;
-  public maxRoundsToWin: number = 2; // Best of 3
+  public maxRoundsToWin: number = 3; // First to 3 round wins
   public phaseTimer: number = 0;
   public announcementText: string = '';
   public announcementSubtext: string = '';
@@ -27,7 +27,7 @@ export class ArcadeHUD {
     this.matchPhase = 'ROUND_INTRO';
     this.phaseTimer = 110;
     this.matchTimer = 60;
-    this.announcementText = this.currentRound === 3 ? 'FINAL ROUND' : `ROUND ${this.currentRound}`;
+    this.announcementText = this.currentRound >= 5 ? 'FINAL ROUND' : `ROUND ${this.currentRound}`;
     this.announcementSubtext = 'HAKKEYOI... NOKOTTA!';
   }
 

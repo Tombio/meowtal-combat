@@ -60,7 +60,7 @@ assert(bumpAerial?.heightDelta === 30, 'Height delta is 30px');
 assert(bumpAerial?.higherCat.id === 'p1', 'P1 is detected as the higher cat');
 assert(bumpAerial?.lowerCat.id === 'p2', 'P2 is detected as the lower cat');
 assert(p2_ground2.state === 'DAZED', 'Lower cat enters DAZED state');
-assert(p2_ground2.vx > 10, `Lower cat receives heavy knockback force (${p2_ground2.vx.toFixed(2)} px/frame)`);
+assert(p2_ground2.vx > 6.0, `Lower cat receives well-balanced knockback force (${p2_ground2.vx.toFixed(2)} px/frame)`);
 assert(p1_air.vy < 0, `Higher cat receives upward pounce rebound (${p1_air.vy.toFixed(2)} px/frame)`);
 
 console.log('\n--- 4. Testing Knockback Scaling by Height Delta ---');
@@ -79,12 +79,17 @@ p1_high_drop.y = p2_target2.y - 40;
 collision.checkAndResolveCats(p1_high_drop, p2_target2);
 const knockbackHigh = Math.abs(p2_target2.vx);
 
+console.log(`Knockback with 15px height drop: ${knockbackLow.toFixed(2)} px/frame`);
+console.log(`Knockback with 40px height drop: ${knockbackHigh.toFixed(2)} px/frame`);
+assert(knockbackHigh > knockbackLow, 'Higher drop results in strictly greater pushback!');
+assert(knockbackHigh <= 7.8, 'Mega bonk is capped at 7.8 px/frame to prevent cheap one-shots!');
+
 console.log('\n--- 5. Testing Bonk Knockback Gravity & Landing (No Floating) ---');
 const victim = new Cat({ id: 'p2', name: 'Kuro', breed: 'black_tuxedo', initialX: 450, initialFacing: -1 }, arena.config.ringSurfaceY);
 assert(victim.isGrounded, 'Victim starts grounded on Dohyo');
 
-// Apply mega bonk knockback
-victim.applyKnockback(12, -2.8, 30);
+// Apply tuned mega bonk knockback
+victim.applyKnockback(7.8, -2.4, 22);
 assert(!victim.isGrounded, 'Victim is correctly flagged airborne when taking vertical impulse');
 
 // Simulate 20 frames of physics with NO player inputs
@@ -97,5 +102,28 @@ for (let frame = 0; frame < 20; frame++) {
 console.log(`Victim initial Y: ${arena.config.ringSurfaceY - victim.height}, peak hop Y: ${peakY.toFixed(1)}, final Y: ${victim.y.toFixed(1)}`);
 assert(victim.isGrounded, 'Victim lands back on the Dohyo platform without needing jump key');
 assert(victim.y === arena.config.ringSurfaceY - victim.height, 'Victim rests firmly on the platform surface, zero floating!');
+
+console.log('\n--- 6. Testing 3 Rounds Needed to Win Match ---');
+import { ArcadeHUD } from '../src/ui/ArcadeHUD';
+const hud = new ArcadeHUD();
+assert(hud.maxRoundsToWin === 3, 'Tournament configured to require 3 round wins');
+
+const testP1 = new Cat({ id: 'p1', name: 'Mochi', breed: 'ginger_tabby', initialX: 300, initialFacing: 1 }, arena.config.ringSurfaceY);
+const testP2 = new Cat({ id: 'p2', name: 'Kuro', breed: 'black_tuxedo', initialX: 600, initialFacing: -1 }, arena.config.ringSurfaceY);
+
+// Win Round 1
+hud.triggerRoundOver(testP2, testP1);
+assert(testP1.roundsWon === 1, 'P1 has 1 round win');
+assert(testP1.roundsWon < hud.maxRoundsToWin, '1 win does not win match');
+
+// Win Round 2
+hud.triggerRoundOver(testP2, testP1);
+assert(testP1.roundsWon === 2, 'P1 has 2 round wins');
+assert(testP1.roundsWon < hud.maxRoundsToWin, '2 wins does not win match (still needs 3rd win)');
+
+// Win Round 3
+hud.triggerRoundOver(testP2, testP1);
+assert(testP1.roundsWon === 3, 'P1 has 3 round wins');
+assert(testP1.roundsWon >= hud.maxRoundsToWin, '3 wins triggers tournament victory!');
 
 console.log('\n🎉 ALL GAMEPLAY SIMULATION TESTS PASSED!\n');
