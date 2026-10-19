@@ -30,27 +30,35 @@ export class ArenaRenderer {
     ctx.fill();
     ctx.shadowBlur = 0;
 
-    // 2. Distant Majestic Mount Fuji
+    // 2. Distant Majestic Mount Fuji (Soft atmospheric silhouette)
     this.drawMountFuji(ctx, 520, cfg.ringSurfaceY - 20);
 
-    // 3. Traditional Multi-Tier Japanese Pagodas (Pagoda towers with curved roof lines)
-    // Left tall 5-tier pagoda silhouetted against the full moon
-    this.drawPagoda(ctx, 115, cfg.ringSurfaceY - 18, 1.25, 5);
+    // 3. Traditional Multi-Tier Japanese Pagodas (Fainter, soft horizon silhouettes)
+    // Left tall 5-tier pagoda silhouetted gently against the moon
+    this.drawPagoda(ctx, 115, cfg.ringSurfaceY - 18, 1.25, 5, '#2e144a');
 
-    // Distant center-left 3-tier pagoda
-    this.drawPagoda(ctx, 330, cfg.ringSurfaceY - 18, 0.95, 3);
+    // Distant center-left 3-tier pagoda (faintest, deepest in the background)
+    this.drawPagoda(ctx, 330, cfg.ringSurfaceY - 18, 0.95, 3, '#3a1958');
 
     // Right 4-tier pagoda framing the arena
-    this.drawPagoda(ctx, 845, cfg.ringSurfaceY - 18, 1.15, 4);
+    this.drawPagoda(ctx, 845, cfg.ringSurfaceY - 18, 1.15, 4, '#2e144a');
 
-    // Traditional Japanese Pine Trees (Matsu) along the horizon
-    this.drawPineTree(ctx, 55, cfg.ringSurfaceY - 18, 1.2);
-    this.drawPineTree(ctx, 175, cfg.ringSurfaceY - 18, 0.9);
-    this.drawPineTree(ctx, 385, cfg.ringSurfaceY - 18, 0.85);
-    this.drawPineTree(ctx, 785, cfg.ringSurfaceY - 18, 1.1);
-    this.drawPineTree(ctx, 905, cfg.ringSurfaceY - 18, 1.0);
+    // Traditional Japanese Pine Trees (Matsu) along the horizon (softened tones)
+    this.drawPineTree(ctx, 55, cfg.ringSurfaceY - 18, 1.2, '#28113e');
+    this.drawPineTree(ctx, 175, cfg.ringSurfaceY - 18, 0.9, '#2f1448');
+    this.drawPineTree(ctx, 385, cfg.ringSurfaceY - 18, 0.85, '#381854'); // distant pine
+    this.drawPineTree(ctx, 785, cfg.ringSurfaceY - 18, 1.1, '#2c1244');
+    this.drawPineTree(ctx, 905, cfg.ringSurfaceY - 18, 1.0, '#28113e');
 
-    // 3. Hanging Festival Lanterns (Glowing red & gold)
+    // 3b. Atmospheric Mountain Mist / Evening Haze along the horizon (softens lower skyline)
+    const horizonMist = ctx.createLinearGradient(0, cfg.ringSurfaceY - 110, 0, cfg.ringSurfaceY - 15);
+    horizonMist.addColorStop(0, 'rgba(73, 24, 90, 0)');
+    horizonMist.addColorStop(0.5, 'rgba(73, 24, 90, 0.22)');
+    horizonMist.addColorStop(1, 'rgba(73, 24, 90, 0.50)');
+    ctx.fillStyle = horizonMist;
+    ctx.fillRect(0, cfg.ringSurfaceY - 110, cfg.canvasWidth, 95);
+
+    // 4. Hanging Festival Lanterns (Glowing red & gold)
     this.drawLantern(ctx, 80, 35, '#ff2a55');
     this.drawLantern(ctx, 240, 45, '#ffaa00');
     this.drawLantern(ctx, cfg.canvasWidth - 240, 45, '#ffaa00');
@@ -259,12 +267,12 @@ export class ArenaRenderer {
   }
 
   /**
-   * Distant Majestic Mount Fuji with soft snowy peak
+   * Distant Majestic Mount Fuji with soft snowy peak (faint atmospheric mountain air)
    */
   private drawMountFuji(ctx: CanvasRenderingContext2D, centerX: number, baseY: number): void {
     ctx.save();
-    // Gentle iconic concave slopes of Mt. Fuji
-    ctx.fillStyle = 'rgba(32, 14, 55, 0.75)';
+    // Soft iconic concave slopes of Mt. Fuji receding peacefully in the distance
+    ctx.fillStyle = 'rgba(46, 18, 72, 0.38)';
     ctx.beginPath();
     ctx.moveTo(centerX - 280, baseY);
     ctx.quadraticCurveTo(centerX - 130, baseY - 35, centerX - 48, baseY - 145);
@@ -274,8 +282,8 @@ export class ArenaRenderer {
     ctx.closePath();
     ctx.fill();
 
-    // Soft snowy crest highlight gleaming in moonlight
-    ctx.fillStyle = 'rgba(255, 240, 250, 0.14)';
+    // Very soft snowy crest highlight gleaming gently in moonlight
+    ctx.fillStyle = 'rgba(255, 240, 250, 0.07)';
     ctx.beginPath();
     ctx.moveTo(centerX - 48, baseY - 145);
     ctx.lineTo(centerX + 48, baseY - 145);
@@ -288,10 +296,18 @@ export class ArenaRenderer {
 
   /**
    * Traditional Japanese Pagoda Tower with multiple tiered, flared roofs and top spire (Sōrin)
+   * Rendered in soft atmospheric tones to remain gentle and non-distracting
    */
-  private drawPagoda(ctx: CanvasRenderingContext2D, centerX: number, baseY: number, scale: number, numTiers: number): void {
+  private drawPagoda(
+    ctx: CanvasRenderingContext2D,
+    centerX: number,
+    baseY: number,
+    scale: number,
+    numTiers: number,
+    color: string = '#2e144a'
+  ): void {
     ctx.save();
-    ctx.fillStyle = '#1a0b2e'; // Dark pagoda silhouette matching night sky
+    ctx.fillStyle = color;
 
     const tierHeight = 23 * scale;
     const baseWidth = 58 * scale;
@@ -300,7 +316,7 @@ export class ArenaRenderer {
 
     // 1. Spire on top (Sōrin)
     const spireH = 36 * scale;
-    ctx.strokeStyle = '#1a0b2e';
+    ctx.strokeStyle = color;
     ctx.lineWidth = 2.5 * scale;
     ctx.beginPath();
     ctx.moveTo(centerX, topRoofY);
@@ -308,7 +324,7 @@ export class ArenaRenderer {
     ctx.stroke();
 
     // Sacred rings (Kurin) on spire
-    ctx.fillStyle = '#1a0b2e';
+    ctx.fillStyle = color;
     for (let r = 0; r < 5; r++) {
       const ringY = topRoofY - (12 + r * 4.5) * scale;
       ctx.fillRect(centerX - 4 * scale, ringY, 8 * scale, 2 * scale);
@@ -359,9 +375,15 @@ export class ArenaRenderer {
   /**
    * Traditional Japanese Pine Tree (Matsu) with cloud-shaped evergreen foliage
    */
-  private drawPineTree(ctx: CanvasRenderingContext2D, x: number, baseY: number, scale: number): void {
+  private drawPineTree(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    baseY: number,
+    scale: number,
+    color: string = '#28113e'
+  ): void {
     ctx.save();
-    ctx.fillStyle = '#130724';
+    ctx.fillStyle = color;
     // Curved trunk
     ctx.beginPath();
     ctx.moveTo(x - 3 * scale, baseY);
