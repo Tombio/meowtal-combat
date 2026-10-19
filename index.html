@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CHONKY CAT SUMO '95 - 2-Player 90s Arcade</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: radial-gradient(circle at center, #261738 0%, #0c0714 100%);
+      color: #fff;
+      font-family: 'Press Start 2P', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    #cabinet-container {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      border: 6px solid #4a2869;
+      border-radius: 12px;
+      background: #12091f;
+      box-shadow: 
+        0 0 30px rgba(255, 105, 180, 0.3),
+        0 0 60px rgba(78, 205, 196, 0.2),
+        inset 0 0 20px rgba(0, 0, 0, 0.8);
+      padding: 10px;
+      max-width: 98vw;
+    }
+
+    #marquee {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      padding: 6px 14px;
+      background: linear-gradient(90deg, #ff007f, #ffaa00, #00f0ff, #ff007f);
+      background-size: 300% 300%;
+      animation: marqueeRainbow 8s ease infinite;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      border: 3px solid #ffe600;
+      box-shadow: 0 0 15px rgba(255, 230, 0, 0.6);
+    }
+
+    @keyframes marqueeRainbow {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    #marquee h1 {
+      font-size: 15px;
+      letter-spacing: 2px;
+      color: #fff;
+      text-shadow: 2px 2px #000, 0 0 8px #ff007f;
+    }
+
+    #marquee .sub-tag {
+      font-size: 9px;
+      color: #ffe600;
+      text-shadow: 1px 1px #000;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 3px 6px;
+      border-radius: 4px;
+    }
+
+    #screen-wrapper {
+      position: relative;
+      width: 960px;
+      height: 540px;
+      max-width: 95vw;
+      max-height: calc(95vw * 9 / 16);
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.95);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    canvas#gameCanvas {
+      width: 100%;
+      height: 100%;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      display: block;
+    }
+
+    /* 90s CRT Scanline & Curved Glass Effect */
+    .crt-overlay {
+      pointer-events: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(
+        rgba(18, 16, 16, 0) 50%, 
+        rgba(0, 0, 0, 0.28) 50%
+      ), linear-gradient(
+        90deg,
+        rgba(255, 0, 0, 0.04),
+        rgba(0, 255, 0, 0.02),
+        rgba(0, 0, 255, 0.04)
+      );
+      background-size: 100% 3px, 3px 100%;
+      box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.7);
+      border-radius: 8px;
+    }
+
+    .crt-curved {
+      box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 240, 255, 0.2);
+    }
+
+    #control-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      margin-top: 8px;
+      padding: 6px 10px;
+      background: #1c0e2d;
+      border-radius: 6px;
+      border: 2px solid #3d205c;
+      font-size: 10px;
+      gap: 8px;
+    }
+
+    .arcade-btn {
+      background: linear-gradient(180deg, #ff4081, #c51162);
+      border: 2px solid #ff80ab;
+      color: #fff;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 9px;
+      padding: 6px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      text-transform: uppercase;
+      box-shadow: 0 3px 0 #880e4f;
+      transition: all 0.08s ease;
+    }
+
+    .arcade-btn:hover {
+      background: linear-gradient(180deg, #ff80ab, #f50057);
+      transform: translateY(-1px);
+    }
+
+    .arcade-btn:active {
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 #880e4f;
+    }
+
+    .arcade-btn.secondary {
+      background: linear-gradient(180deg, #00e5ff, #0091ea);
+      border-color: #80d8ff;
+      box-shadow: 0 3px 0 #01579b;
+    }
+
+    .arcade-btn.secondary:hover {
+      background: linear-gradient(180deg, #80d8ff, #00b0ff);
+    }
+
+    .arcade-btn.secondary:active {
+      box-shadow: 0 1px 0 #01579b;
+    }
+
+    .player-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 8px;
+    }
+
+    .badge-p1 {
+      color: #ff9800;
+      text-shadow: 0 0 6px rgba(255, 152, 0, 0.7);
+    }
+
+    .badge-p2 {
+      color: #00e5ff;
+      text-shadow: 0 0 6px rgba(0, 229, 255, 0.7);
+    }
+
+    /* Modal for Key Remapping */
+    #key-modal {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(8, 4, 16, 0.92);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    #key-modal.active {
+      display: flex;
+    }
+
+    .modal-box {
+      background: #1a0f2b;
+      border: 4px solid #ffe600;
+      box-shadow: 0 0 25px rgba(255, 230, 0, 0.5);
+      border-radius: 8px;
+      padding: 20px;
+      max-width: 580px;
+      width: 100%;
+    }
+
+    .modal-title {
+      color: #ffe600;
+      font-size: 13px;
+      margin-bottom: 16px;
+      text-shadow: 2px 2px #000;
+    }
+
+    .key-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+      font-size: 9px;
+    }
+
+    .key-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 8px;
+      background: #271442;
+      border-radius: 4px;
+      margin-bottom: 6px;
+    }
+
+    .key-bind-btn {
+      background: #3c1e63;
+      border: 2px solid #bb86fc;
+      color: #ffe600;
+      padding: 4px 10px;
+      font-family: inherit;
+      font-size: 8px;
+      cursor: pointer;
+      border-radius: 3px;
+    }
+
+    .key-bind-btn.listening {
+      background: #ff0055;
+      color: #fff;
+      animation: pulse 0.5s infinite alternate;
+    }
+
+    @keyframes pulse {
+      from { transform: scale(1); }
+      to { transform: scale(1.08); }
+    }
+  </style>
+</head>
+<body>
+  <div id="cabinet-container">
+    <div id="marquee">
+      <h1>★ CHONKY CAT SUMO '95 ★</h1>
+      <div class="sub-tag">2-PLAYER DOHYO CLASH</div>
+    </div>
+
+    <div id="screen-wrapper">
+      <canvas id="gameCanvas" width="960" height="540"></canvas>
+      <div id="crt-layer" class="crt-overlay crt-curved"></div>
+
+      <!-- Key Config Modal inside screen -->
+      <div id="key-modal">
+        <div class="modal-box">
+          <div class="modal-title">⚙ BUTTON MAPPINGS ⚙</div>
+          <div class="key-grid">
+            <div>
+              <div class="badge-p1" style="margin-bottom: 10px; font-size: 10px;">★ P1: MOCHI ★</div>
+              <div class="key-row"><span>LEFT</span><button class="key-bind-btn" data-player="p1" data-action="left">A</button></div>
+              <div class="key-row"><span>RIGHT</span><button class="key-bind-btn" data-player="p1" data-action="right">D</button></div>
+              <div class="key-row"><span>JUMP</span><button class="key-bind-btn" data-player="p1" data-action="jump">W</button></div>
+            </div>
+            <div>
+              <div class="badge-p2" style="margin-bottom: 10px; font-size: 10px;">★ P2: KURO ★</div>
+              <div class="key-row"><span>LEFT</span><button class="key-bind-btn" data-player="p2" data-action="left">ArrowLeft</button></div>
+              <div class="key-row"><span>RIGHT</span><button class="key-bind-btn" data-player="p2" data-action="right">ArrowRight</button></div>
+              <div class="key-row"><span>JUMP</span><button class="key-bind-btn" data-player="p2" data-action="jump">ArrowUp</button></div>
+            </div>
+          </div>
+          <p style="font-size: 7px; color: #aaa; margin-bottom: 14px;">Click any button above, then press your desired key on keyboard!</p>
+          <div style="display: flex; justify-content: center; gap: 10px;">
+            <button id="modal-reset-btn" class="arcade-btn secondary">RESET DEFAULTS</button>
+            <button id="modal-close-btn" class="arcade-btn">CLOSE [ESC]</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="control-bar">
+      <div class="player-indicator">
+        <span class="badge-p1">P1 (Ginger Mochi): [A/D/W]</span>
+        <span>|</span>
+        <span class="badge-p2">P2 (Black Kuro): [Arrows]</span>
+      </div>
+      <div style="display: flex; gap: 6px;">
+        <button id="btn-keys" class="arcade-btn secondary">CONTROLS</button>
+        <button id="btn-crt" class="arcade-btn secondary">CRT ON</button>
+        <button id="btn-sound" class="arcade-btn">SOUND: ON</button>
+        <button id="btn-fullscreen" class="arcade-btn secondary">⛶ FULL</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

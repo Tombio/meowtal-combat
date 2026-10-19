@@ -1,0 +1,374 @@
+import { Cat } from '../entities/Cat';
+
+export class CatRenderer {
+  public draw(ctx: CanvasRenderingContext2D, cat: Cat): void {
+    ctx.save();
+
+    // Center transform for squash and stretch
+    const centerX = cat.x + cat.width / 2;
+    const bottomY = cat.y + cat.height;
+
+    ctx.translate(centerX, bottomY);
+    ctx.scale(cat.scaleX * cat.facing, cat.scaleY);
+
+    // Dynamic rotation for waddle, jump, and daze
+    let rot = 0;
+    if (cat.state === 'WADDLE') {
+      rot = Math.sin(cat.animTimer * 0.3) * 0.08;
+    } else if (cat.state === 'JUMP_RISE') {
+      rot = -0.06;
+    } else if (cat.state === 'JUMP_FALL') {
+      rot = 0.05;
+    } else if (cat.state === 'DAZED') {
+      rot = Math.sin(cat.animTimer * 0.5) * 0.12;
+    } else if (cat.state === 'TEETER') {
+      rot = Math.sin(cat.animTimer * 0.6) * 0.18;
+    } else if (cat.state === 'RING_OUT') {
+      rot = (cat.animTimer * 0.25) * (cat.vx < 0 ? -1 : 1);
+    }
+    ctx.rotate(rot);
+
+    // Color Palettes
+    const isGinger = cat.breed === 'ginger_tabby';
+    const furColor = isGinger ? '#ff8c1a' : '#23202b';
+    const furShade = isGinger ? '#d96800' : '#14121a';
+    const bellyColor = isGinger ? '#fff3e0' : '#f5f5fc';
+    const earInner = '#ffafbd';
+    const noseColor = '#ff6b8b';
+    const eyeColor = isGinger ? '#2c3e50' : '#ffd500';
+    const beltColor = isGinger ? '#e91e63' : '#00b0ff'; // P1 Pink/Red, P2 Cyan
+    const beltBorder = isGinger ? '#ad1457' : '#007bb5';
+
+    // 1. Shadow underneath (if grounded or near platform)
+    if (cat.isGrounded) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+      ctx.beginPath();
+      ctx.ellipse(0, -2, 24, 7, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 2. Fluffy Tail
+    ctx.save();
+    const tailWag = Math.sin(cat.animTimer * 0.2) * 8;
+    ctx.fillStyle = furColor;
+    ctx.beginPath();
+    ctx.ellipse(-20, -18 + tailWag * 0.5, 7, 14, -0.6 + tailWag * 0.04, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // 3. Cute Chubby Body (Rounded Mochi Ball)
+    ctx.fillStyle = furColor;
+    ctx.beginPath();
+    // Chubby torso
+    ctx.ellipse(0, -24, 26, 22, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Body shading (bottom rim)
+    ctx.fillStyle = furShade;
+    ctx.beginPath();
+    ctx.ellipse(0, -12, 23, 10, 0, 0, Math.PI);
+    ctx.fill();
+
+    // 4. White Belly Patch
+    ctx.fillStyle = bellyColor;
+    ctx.beginPath();
+    ctx.ellipse(2, -20, 15, 14, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Tabby Stripes (if Ginger)
+    if (isGinger) {
+      ctx.fillStyle = furShade;
+      // Forehead stripes
+      ctx.fillRect(2, -42, 3, 6);
+      ctx.fillRect(-4, -40, 2, 5);
+      ctx.fillRect(8, -40, 2, 5);
+      // Side flank stripes
+      ctx.fillRect(-18, -26, 4, 3);
+      ctx.fillRect(-17, -20, 4, 3);
+    }
+
+    // 5. Cute Sumo Belt (Ribbon Mawashi)
+    ctx.fillStyle = beltColor;
+    ctx.fillRect(-18, -17, 36, 6);
+    ctx.fillStyle = beltBorder;
+    ctx.strokeRect(-18, -17, 36, 6);
+
+    // Belt Knot & Bow in center
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(0, -14, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = beltColor;
+    ctx.beginPath();
+    ctx.arc(0, -14, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 6. Pointy Fluffy Ears
+    // Left Ear
+    ctx.fillStyle = furColor;
+    ctx.beginPath();
+    ctx.moveTo(-16, -38);
+    ctx.lineTo(-24, -54);
+    ctx.lineTo(-6, -42);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = earInner;
+    ctx.beginPath();
+    ctx.moveTo(-15, -40);
+    ctx.lineTo(-21, -50);
+    ctx.lineTo(-8, -43);
+    ctx.closePath();
+    ctx.fill();
+
+    // Right Ear
+    ctx.fillStyle = furColor;
+    ctx.beginPath();
+    ctx.moveTo(8, -42);
+    ctx.lineTo(24, -54);
+    ctx.lineTo(18, -38);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = earInner;
+    ctx.beginPath();
+    ctx.moveTo(10, -43);
+    ctx.lineTo(21, -50);
+    ctx.lineTo(16, -40);
+    ctx.closePath();
+    ctx.fill();
+
+    // 7. Facial Features
+    if (cat.state === 'DAZED') {
+      // Dizzy Spiral / X Eyes
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 2.5;
+
+      // Left eye X
+      ctx.beginPath();
+      ctx.moveTo(-12, -32); ctx.lineTo(-4, -24);
+      ctx.moveTo(-4, -32); ctx.lineTo(-12, -24);
+      ctx.stroke();
+
+      // Right eye X
+      ctx.beginPath();
+      ctx.moveTo(6, -32); ctx.lineTo(14, -24);
+      ctx.moveTo(14, -32); ctx.lineTo(6, -24);
+      ctx.stroke();
+
+      // Dazed wavy mouth
+      ctx.beginPath();
+      ctx.moveTo(-4, -18);
+      ctx.quadraticCurveTo(0, -22, 4, -18);
+      ctx.stroke();
+    } else if (cat.state === 'TEETER') {
+      // Wide terrified eyes
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(-8, -28, 6, 0, Math.PI * 2);
+      ctx.arc(10, -28, 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Tiny pinprick pupils
+      ctx.fillStyle = '#000';
+      ctx.beginPath();
+      ctx.arc(-7, -28, 2, 0, Math.PI * 2);
+      ctx.arc(9, -28, 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Terrified open "O" mouth
+      ctx.fillStyle = '#ff4d6d';
+      ctx.beginPath();
+      ctx.ellipse(1, -18, 4, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (cat.state === 'CELEBRATING') {
+      // Happy curved closed eyes (^ . ^)
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(-8, -27, 4, Math.PI, 0);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(10, -27, 4, Math.PI, 0);
+      ctx.stroke();
+
+      // Smiling open mouth
+      ctx.fillStyle = '#ff4d6d';
+      ctx.beginPath();
+      ctx.arc(1, -19, 4, 0, Math.PI);
+      ctx.fill();
+    } else {
+      // Normal / Waddle / Jumping Expression
+      if (cat.isBlinking) {
+        // Blinking line
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-12, -28); ctx.lineTo(-4, -28);
+        ctx.moveTo(6, -28); ctx.lineTo(14, -28);
+        ctx.stroke();
+      } else {
+        // Big cute eyes
+        ctx.fillStyle = eyeColor;
+        ctx.beginPath();
+        ctx.ellipse(-8, -28, 5, 6, 0, 0, Math.PI * 2);
+        ctx.ellipse(10, -28, 5, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Eye highlights (sparkle!)
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(-9, -30, 2, 0, Math.PI * 2);
+        ctx.arc(9, -30, 2, 0, Math.PI * 2);
+        ctx.arc(-6, -26, 1, 0, Math.PI * 2);
+        ctx.arc(12, -26, 1, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Cute pink nose
+      ctx.fillStyle = noseColor;
+      ctx.beginPath();
+      ctx.moveTo(1, -22);
+      ctx.lineTo(-2, -25);
+      ctx.lineTo(4, -25);
+      ctx.closePath();
+      ctx.fill();
+
+      // Cute cat mouth :3
+      ctx.strokeStyle = furShade;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(1, -22);
+      ctx.lineTo(1, -20);
+      ctx.moveTo(-3, -19);
+      ctx.quadraticCurveTo(-1, -17, 1, -20);
+      ctx.quadraticCurveTo(3, -17, 5, -19);
+      ctx.stroke();
+    }
+
+    // Chubby Rosy Cheeks
+    ctx.fillStyle = 'rgba(255, 105, 140, 0.4)';
+    ctx.beginPath();
+    ctx.arc(-16, -24, 4, 0, Math.PI * 2);
+    ctx.arc(16, -24, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 8. Whiskers
+    ctx.strokeStyle = isGinger ? '#d96800' : '#888';
+    ctx.lineWidth = 1;
+    // Left whiskers
+    ctx.beginPath();
+    ctx.moveTo(-14, -23); ctx.lineTo(-25, -25);
+    ctx.moveTo(-14, -21); ctx.lineTo(-24, -20);
+    // Right whiskers
+    ctx.moveTo(14, -23); ctx.lineTo(25, -25);
+    ctx.moveTo(14, -21); ctx.lineTo(24, -20);
+    ctx.stroke();
+
+    // 9. Paws & Feet
+    const pawColor = '#fff'; // Cute white socks
+    if (cat.state === 'TEETER') {
+      // Panicked pinwheeling paws
+      const flap = Math.sin(cat.animTimer * 0.8) * 12;
+      ctx.fillStyle = pawColor;
+      ctx.beginPath();
+      ctx.arc(-14 + flap, -32, 6, 0, Math.PI * 2);
+      ctx.arc(16 - flap, -32, 6, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (cat.state === 'JUMP_RISE') {
+      // Reaching up paws
+      ctx.fillStyle = pawColor;
+      ctx.beginPath();
+      ctx.arc(-10, -42, 6, 0, Math.PI * 2);
+      ctx.arc(12, -42, 6, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (cat.state === 'JUMP_FALL') {
+      // Spread eagle paws
+      ctx.fillStyle = pawColor;
+      ctx.beginPath();
+      ctx.arc(-22, -26, 6, 0, Math.PI * 2);
+      ctx.arc(22, -26, 6, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (cat.state === 'WADDLE') {
+      // Alternating step paws
+      const stepLeft = Math.sin(cat.animTimer * 0.4) * 4;
+      const stepRight = -stepLeft;
+      ctx.fillStyle = pawColor;
+      ctx.beginPath();
+      ctx.arc(-12, -4 + stepLeft, 6, 0, Math.PI * 2);
+      ctx.arc(12, -4 + stepRight, 6, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // Rest paws
+      ctx.fillStyle = pawColor;
+      ctx.beginPath();
+      ctx.arc(-12, -4, 6, 0, Math.PI * 2);
+      ctx.arc(12, -4, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+
+    // 10. Floating Dizzy Stars (drawn in world coordinates above cat's head)
+    if (cat.state === 'DAZED') {
+      this.drawDizzyStars(ctx, centerX, cat.y - 12, cat.animTimer);
+    }
+
+    // 11. Panic Sweat Drops when Teetering on Edge
+    if (cat.state === 'TEETER') {
+      this.drawSweatDrops(ctx, centerX, cat.y - 8, cat.animTimer);
+    }
+  }
+
+  private drawDizzyStars(ctx: CanvasRenderingContext2D, cx: number, cy: number, timer: number): void {
+    const starCount = 3;
+    const radius = 22;
+    for (let i = 0; i < starCount; i++) {
+      const angle = (timer * 0.15) + (i * (Math.PI * 2 / starCount));
+      const sx = cx + Math.cos(angle) * radius;
+      const sy = cy + Math.sin(angle) * (radius * 0.45);
+
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.rotate(timer * 0.2);
+      ctx.fillStyle = '#ffe600';
+      ctx.shadowColor = '#ffaa00';
+      ctx.shadowBlur = 6;
+      this.drawStar(ctx, 0, 0, 5, 6, 2.5);
+      ctx.restore();
+    }
+  }
+
+  private drawStar(ctx: CanvasRenderingContext2D, cx: number, cy: number, spikes: number, outerR: number, innerR: number): void {
+    let rot = Math.PI / 2 * 3;
+    let x = cx;
+    let y = cy;
+    const step = Math.PI / spikes;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - outerR);
+    for (let i = 0; i < spikes; i++) {
+      x = cx + Math.cos(rot) * outerR;
+      y = cy + Math.sin(rot) * outerR;
+      ctx.lineTo(x, y);
+      rot += step;
+
+      x = cx + Math.cos(rot) * innerR;
+      y = cy + Math.sin(rot) * innerR;
+      ctx.lineTo(x, y);
+      rot += step;
+    }
+    ctx.lineTo(cx, cy - outerR);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  private drawSweatDrops(ctx: CanvasRenderingContext2D, cx: number, cy: number, timer: number): void {
+    const dropOffset = (timer * 2.5) % 18;
+    ctx.fillStyle = '#00f0ff';
+    ctx.beginPath();
+    ctx.arc(cx - 16, cy - dropOffset, 3, 0, Math.PI * 2);
+    ctx.arc(cx + 16, cy - dropOffset + 4, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
