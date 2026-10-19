@@ -92,6 +92,9 @@ export class Cat {
   public applyKnockback(impulseX: number, impulseY: number, dazeFrames: number): void {
     this.vx = impulseX;
     this.vy = impulseY;
+    if (impulseY !== 0) {
+      this.isGrounded = false;
+    }
     this.dazeTimer = dazeFrames;
     this.maxDazeTimer = dazeFrames;
     this.state = 'DAZED';
@@ -102,6 +105,7 @@ export class Cat {
   public pounceBounce(): void {
     // Upward spring given to higher cat who successfully stomped/bumped opponent
     this.vy = -8.5;
+    this.isGrounded = false;
     this.scaleX = 0.85;
     this.scaleY = 1.25;
   }
@@ -175,8 +179,9 @@ export class Cat {
       }
     }
 
-    // Gravity calculation
-    if (!this.isGrounded) {
+    // Gravity calculation: applies whenever airborne or whenever vy is non-zero
+    if (!this.isGrounded || this.vy !== 0) {
+      this.isGrounded = false;
       // Variable jump height: lighter gravity when holding jump while moving upwards
       const gravity = (this.vy < 0 && this.isHoldingJump) ? 0.48 : 0.88;
       this.vy += gravity;
@@ -193,8 +198,8 @@ export class Cat {
 
     if (isAboveRingHorizontally) {
       const feetY = this.y + this.height;
-      // Landing on platform from above
-      if (feetY >= ringSurface && (feetY - this.vy) <= ringSurface + 16) {
+      // Landing on platform from above (only when descending)
+      if (feetY >= ringSurface && this.vy >= 0 && (feetY - this.vy) <= ringSurface + 16) {
         this.y = ringSurface - this.height;
         if (!this.isGrounded && this.vy > 2) {
           // Landing squish
@@ -204,6 +209,9 @@ export class Cat {
         }
         this.vy = 0;
         this.isGrounded = true;
+      } else if (feetY < ringSurface - 0.5) {
+        // Feet are in the air above platform
+        this.isGrounded = false;
       }
     } else {
       // Left or Right off platform
