@@ -40,9 +40,16 @@ export class OnlineModal {
     this.closeBtnEl?.addEventListener('click', () => this.close());
     this.copyBtnEl?.addEventListener('click', () => this.handleCopy());
 
-    // Network connection callback
+    // Network connection callbacks
     this.network.onConnectionChanged = (connected: boolean, role: NetworkRole, roomId: string) => {
       this.handleConnectionChanged(connected, role, roomId);
+    };
+
+    this.network.onStatusMessage = (msg: string, isError?: boolean) => {
+      if (this.statusTextEl) {
+        this.statusTextEl.textContent = msg;
+        this.statusTextEl.className = isError ? 'online-status-error' : 'online-status-waiting';
+      }
     };
   }
 

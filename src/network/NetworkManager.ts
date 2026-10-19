@@ -1,5 +1,7 @@
-// @ts-ignore - trystero/nostr exports joinRoom without explicit d.ts in subpath
-import { joinRoom, selfId } from 'trystero/nostr';
+import Peer from 'peerjs';
+import type { DataConnection } from 'peerjs';
+
+const PeerConstructor: any = (Peer as any)?.Peer || (Peer as any)?.default || Peer;
 
 export type NetworkRole = 'host' | 'guest';
 
@@ -27,27 +29,19 @@ export interface NetworkSignal {
 }
 
 export class NetworkManager {
-  private room: any = null;
+  private peer: Peer | null = null;
+  private conn: DataConnection | null = null;
   private role: NetworkRole | null = null;
   private currentRoomId: string | null = null;
-  private opponentPeerId: string | null = null;
-
-  // Actions
-  private sendInputsAction: ((data: PlayerInputPacket) => void) | null = null;
-  private sendStateAction: ((data: NetworkStateSnapshot) => void) | null = null;
-  private sendSignalAction: ((data: NetworkSignal) => void) | null = null;
 
   // Callbacks
   public onConnectionChanged: ((connected: boolean, role: NetworkRole, roomId: string) => void) | null = null;
+  public onStatusMessage: ((msg: string, isError?: boolean) => void) | null = null;
   public onRemoteInputReceived: ((inputs: PlayerInputPacket) => void) | null = null;
   public onRemoteStateReceived: ((state: NetworkStateSnapshot) => void) | null = null;
   public onRemoteSignalReceived: ((signal: NetworkSignal) => void) | null = null;
 
   constructor() {}
-
-  public getSelfId(): string {
-    return selfId;
-  }
 
   public getRole(): NetworkRole | null {
     return this.role;
@@ -58,7 +52,7 @@ export class NetworkManager {
   }
 
   public isConnected(): boolean {
-    return this.opponentPeerId !== null && this.room !== null;
+    return this.conn !== null && this.conn.open;
   }
 
   public getRoomId(): string | null {
@@ -73,13 +67,62 @@ export class NetworkManager {
     return `cat-${randomHex}`;
   }
 
+  private createPeerInstance(id?: string): any {
+    return new PeerConstructor(id, {
+      debug: 1,
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:global.stun.twilio.com:3478' },
+        ],
+      },
+    });
+  }
+
   /**
    * Host starts a new room and awaits opponent
    */
   public hostRoom(roomId?: string): string {
-    const id = roomId || this.generateRoomCode();
+    this.leaveRoom();
+    const id = (roomId || this.generateRoomCode()).toLowerCase();
     this.role = 'host';
-    this.connectToRoom(id);
+    this.currentRoomId = id;
+
+    if (this.onStatusMessage) {
+      this.onStatusMessage(`CONNECTING TO NETWORK AS HOST...`);
+    }
+
+    try {
+      const peer = this.createPeerInstance(id);
+      this.peer = peer;
+
+      peer.on('open', (assignedId: string) => {
+        this.currentRoomId = assignedId;
+        if (this.onStatusMessage) {
+          this.onStatusMessage(`ROOM ${assignedId} READY! WAITING FOR OPPONENT...`);
+        }
+      });
+
+      peer.on('connection', (connection: DataConnection) => {
+        this.conn = connection;
+        this.setupConnectionHandlers(connection);
+      });
+
+      peer.on('error', (err: any) => {
+        console.error('PeerJS Host Error:', err);
+        if (err.type === 'unavailable-id') {
+          // If ID collision, retry with a fresh code
+          const newId = this.generateRoomCode();
+          this.hostRoom(newId);
+        } else if (this.onStatusMessage) {
+          this.onStatusMessage(`NETWORK ERROR: ${err.type || 'Connection failed'}`, true);
+        }
+      });
+    } catch (err) {
+      console.error('Failed to create host peer:', err);
+    }
+
     return id;
   }
 
@@ -87,105 +130,110 @@ export class NetworkManager {
    * Guest joins an existing room by code/link
    */
   public joinRoomById(roomId: string): void {
+    this.leaveRoom();
+    const id = roomId.trim().toLowerCase();
     this.role = 'guest';
-    this.connectToRoom(roomId);
-  }
+    this.currentRoomId = id;
 
-  private connectToRoom(roomId: string): void {
-    if (this.room) {
-      this.leaveRoom();
+    if (this.onStatusMessage) {
+      this.onStatusMessage(`CONNECTING TO ROOM ${id}...`);
     }
 
-    this.currentRoomId = roomId;
-
     try {
-      this.room = joinRoom(
-        {
-          appId: 'meowtal-combat-sumo',
-        },
-        roomId
-      );
+      const peer = this.createPeerInstance();
+      this.peer = peer;
 
-      // Register P2P Actions
-      const [sendInputs, getInputs] = this.room.makeAction('inputs');
-      const [sendState, getState] = this.room.makeAction('state');
-      const [sendSignal, getSignal] = this.room.makeAction('signal');
+      peer.on('open', () => {
+        // Connect directly to the host's peer ID
+        const connection = peer.connect(id, {
+          reliable: false, // low-latency direct UDP for fighting game
+        });
 
-      this.sendInputsAction = sendInputs;
-      this.sendStateAction = sendState;
-      this.sendSignalAction = sendSignal;
-
-      getInputs((data: PlayerInputPacket) => {
-        if (this.onRemoteInputReceived) {
-          this.onRemoteInputReceived(data);
-        }
+        this.conn = connection;
+        this.setupConnectionHandlers(connection);
       });
 
-      getState((data: NetworkStateSnapshot) => {
-        if (this.onRemoteStateReceived) {
-          this.onRemoteStateReceived(data);
-        }
-      });
-
-      getSignal((data: NetworkSignal) => {
-        if (this.onRemoteSignalReceived) {
-          this.onRemoteSignalReceived(data);
-        }
-      });
-
-      this.room.onPeerJoin((peerId: string) => {
-        this.opponentPeerId = peerId;
-        if (this.onConnectionChanged && this.role && this.currentRoomId) {
-          this.onConnectionChanged(true, this.role, this.currentRoomId);
-        }
-      });
-
-      this.room.onPeerLeave((peerId: string) => {
-        if (this.opponentPeerId === peerId) {
-          this.opponentPeerId = null;
-          if (this.onConnectionChanged && this.role && this.currentRoomId) {
-            this.onConnectionChanged(false, this.role, this.currentRoomId);
-          }
+      peer.on('error', (err: any) => {
+        console.error('PeerJS Guest Error:', err);
+        if (this.onStatusMessage) {
+          this.onStatusMessage(`FAILED TO CONNECT: ${err.type || 'Room not found'}`, true);
         }
       });
     } catch (err) {
-      console.error('Failed to join decentralized WebRTC room:', err);
+      console.error('Failed to create guest peer:', err);
     }
   }
 
+  private setupConnectionHandlers(conn: DataConnection): void {
+    conn.on('open', () => {
+      if (this.onConnectionChanged && this.role && this.currentRoomId) {
+        this.onConnectionChanged(true, this.role, this.currentRoomId);
+      }
+    });
+
+    conn.on('data', (raw: any) => {
+      if (!raw || typeof raw !== 'object') return;
+
+      if (raw.t === 'inputs' && this.onRemoteInputReceived) {
+        this.onRemoteInputReceived(raw.d);
+      } else if (raw.t === 'state' && this.onRemoteStateReceived) {
+        this.onRemoteStateReceived(raw.d);
+      } else if (raw.t === 'signal' && this.onRemoteSignalReceived) {
+        this.onRemoteSignalReceived(raw.d);
+      }
+    });
+
+    conn.on('close', () => {
+      this.conn = null;
+      if (this.onConnectionChanged && this.role && this.currentRoomId) {
+        this.onConnectionChanged(false, this.role, this.currentRoomId);
+      }
+    });
+
+    conn.on('error', (err) => {
+      console.error('DataConnection error:', err);
+    });
+  }
+
   public sendInputs(packet: PlayerInputPacket): void {
-    if (this.sendInputsAction && this.isConnected()) {
-      this.sendInputsAction(packet);
+    if (this.conn && this.conn.open) {
+      this.conn.send({ t: 'inputs', d: packet });
     }
   }
 
   public sendState(snapshot: NetworkStateSnapshot): void {
-    if (this.sendStateAction && this.isConnected() && this.isHost()) {
-      this.sendStateAction(snapshot);
+    if (this.conn && this.conn.open && this.isHost()) {
+      this.conn.send({ t: 'state', d: snapshot });
     }
   }
 
   public sendSignal(signal: NetworkSignal): void {
-    if (this.sendSignalAction && this.isConnected()) {
-      this.sendSignalAction(signal);
+    if (this.conn && this.conn.open) {
+      this.conn.send({ t: 'signal', d: signal });
     }
   }
 
   public leaveRoom(): void {
-    if (this.room) {
+    if (this.conn) {
       try {
-        this.room.leave();
+        this.conn.close();
       } catch {
         // ignore
       }
-      this.room = null;
+      this.conn = null;
     }
+
+    if (this.peer) {
+      try {
+        this.peer.destroy();
+      } catch {
+        // ignore
+      }
+      this.peer = null;
+    }
+
     this.currentRoomId = null;
-    this.opponentPeerId = null;
     this.role = null;
-    this.sendInputsAction = null;
-    this.sendStateAction = null;
-    this.sendSignalAction = null;
   }
 
   public getShareUrl(roomId: string): string {
