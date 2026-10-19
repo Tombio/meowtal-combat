@@ -88,9 +88,14 @@ class CatSumoGame {
     const btnFullscreen = document.getElementById('btn-fullscreen');
     const crtLayer = document.getElementById('crt-layer');
 
-    btnOnline?.addEventListener('click', () => {
+    const btnOnlineMarquee = document.getElementById('btn-online-marquee');
+
+    const openOnline = () => {
       this.onlineModal.open();
-    });
+    };
+
+    btnOnline?.addEventListener('click', openOnline);
+    btnOnlineMarquee?.addEventListener('click', openOnline);
 
     btnTouch?.addEventListener('click', () => {
       const isNowVisible = this.touchController.toggle();

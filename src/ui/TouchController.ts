@@ -19,14 +19,12 @@ export class TouchController {
     this.bindButton('touch-btn-right', 'right');
     this.bindButton('touch-btn-jump', 'jump');
 
-    // Auto-detect mobile / touch capability
-    const isTouchDevice =
-      'ontouchstart' in window ||
-      navigator.maxTouchPoints > 0 ||
-      window.matchMedia('(pointer: coarse)').matches ||
-      window.innerWidth <= 900;
+    // Only auto-show on actual mobile devices (phones/tablets with coarse touch pointer), not laptops
+    const isMobileTouchDevice =
+      window.matchMedia('(pointer: coarse)').matches &&
+      (window.innerWidth <= 850 || 'ontouchstart' in window);
 
-    if (isTouchDevice) {
+    if (isMobileTouchDevice) {
       this.show();
     }
   }
