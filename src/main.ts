@@ -103,6 +103,12 @@ class CatSumoGame {
       }
     });
 
+    const btnTrack = document.getElementById('btn-track');
+    btnTrack?.addEventListener('click', () => {
+      const title = this.sound.nextTrack();
+      this.hud.showTrackBanner(title);
+    });
+
     btnFullscreen?.addEventListener('click', () => {
       const container = document.getElementById('screen-wrapper');
       if (!document.fullscreenElement) {
@@ -147,6 +153,10 @@ class CatSumoGame {
     this.p1.resetPosition(300, surfaceY, 1);
     this.p2.resetPosition(604, surfaceY, -1);
     this.sound.playTaikoDon();
+
+    // Dynamically switch track for current round & notify player
+    const trackTitle = this.sound.setRoundTrack(this.hud.currentRound);
+    this.hud.showTrackBanner(trackTitle);
   }
 
   private gameLoop(timestamp: number): void {

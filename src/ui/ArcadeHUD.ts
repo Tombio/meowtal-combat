@@ -18,6 +18,15 @@ export class ArcadeHUD {
   public matchTimer: number = 60;
   private frameCounter: number = 0;
 
+  // Track banner popup
+  public trackBanner: string = '';
+  public trackBannerTimer: number = 0;
+
+  public showTrackBanner(title: string): void {
+    this.trackBanner = title;
+    this.trackBannerTimer = 180;
+  }
+
   public startMatch(): void {
     this.currentRound = 1;
     this.startRoundIntro();
@@ -48,6 +57,10 @@ export class ArcadeHUD {
 
   public update(): void {
     this.frameCounter++;
+
+    if (this.trackBannerTimer > 0) {
+      this.trackBannerTimer--;
+    }
 
     if (this.matchPhase === 'ROUND_INTRO') {
       this.phaseTimer--;
@@ -89,6 +102,38 @@ export class ArcadeHUD {
     } else if (this.matchPhase === 'MATCH_OVER') {
       this.drawMatchOverScreen(ctx, canvasWidth, canvasHeight);
     }
+
+    // 3. Track change banner
+    if (this.trackBannerTimer > 0) {
+      this.drawTrackBanner(ctx, canvasWidth, canvasHeight);
+    }
+  }
+
+  private drawTrackBanner(ctx: CanvasRenderingContext2D, width: number, height: number): void {
+    ctx.save();
+    const alpha = this.trackBannerTimer > 150 
+      ? (180 - this.trackBannerTimer) / 30 
+      : (this.trackBannerTimer < 30 ? this.trackBannerTimer / 30 : 1.0);
+
+    ctx.globalAlpha = Math.max(alpha, 0);
+    const boxW = 540;
+    const boxH = 28;
+    const boxX = (width - boxW) / 2;
+    const boxY = height - 42;
+
+    ctx.fillStyle = 'rgba(12, 6, 24, 0.88)';
+    ctx.strokeStyle = '#00f0ff';
+    ctx.lineWidth = 2;
+    ctx.fillRect(boxX, boxY, boxW, boxH);
+    ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+    ctx.font = '9px "Press Start 2P", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffe600';
+    ctx.shadowColor = '#00f0ff';
+    ctx.shadowBlur = 8;
+    ctx.fillText(`🎵 BGM: ${this.trackBanner}`, width / 2, boxY + 18);
+    ctx.restore();
   }
 
   private drawTopBar(ctx: CanvasRenderingContext2D, p1: Cat, p2: Cat, width: number): void {

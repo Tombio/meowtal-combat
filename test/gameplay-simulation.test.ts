@@ -126,4 +126,21 @@ hud.triggerRoundOver(testP2, testP1);
 assert(testP1.roundsWon === 3, 'P1 has 3 round wins');
 assert(testP1.roundsWon >= hud.maxRoundsToWin, '3 wins triggers tournament victory!');
 
+console.log('\n--- 7. Testing Dynamic Round BGM Track Switching ---');
+const trackR1 = soundMock.setRoundTrack(1);
+console.log(`Round 1 Track: ${trackR1}`);
+assert(trackR1.includes('136 BPM'), 'Round 1 loads fast 136 BPM Neo-Dohyo Acid');
+
+const trackR2 = soundMock.setRoundTrack(2);
+console.log(`Round 2 Track: ${trackR2}`);
+assert(trackR2.includes('110 BPM'), 'Round 2 switches to slower 110 BPM Shinobi Dub');
+
+const trackR3 = soundMock.setRoundTrack(3);
+console.log(`Round 3 Track: ${trackR3}`);
+assert(trackR3.includes('124 BPM'), 'Round 3 switches to 124 BPM Tokyo Metropolis');
+
+const manualNext = soundMock.nextTrack();
+console.log(`Manual Next Track: ${manualNext}`);
+assert(manualNext.includes('144 BPM'), 'Next track advances to 144 BPM Final Climax Rave');
+
 console.log('\n🎉 ALL GAMEPLAY SIMULATION TESTS PASSED!\n');

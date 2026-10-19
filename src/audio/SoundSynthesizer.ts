@@ -53,6 +53,26 @@ export class SoundSynthesizer {
     this.bgm.duckVolume(duck);
   }
 
+  public setRoundTrack(roundNumber: number): string {
+    const title = this.bgm.setRoundTrack(roundNumber);
+    if (this.isBGMEnabled && !this.isMuted) {
+      this.startBGM();
+    }
+    return title;
+  }
+
+  public nextTrack(): string {
+    const title = this.bgm.nextTrack();
+    if (this.isBGMEnabled && !this.isMuted) {
+      this.startBGM();
+    }
+    return title;
+  }
+
+  public getCurrentTrackTitle(): string {
+    return this.bgm.getCurrentTrackTitle();
+  }
+
   public toggleBGM(): boolean {
     this.isBGMEnabled = !this.isBGMEnabled;
     this.bgm.setMuted(!this.isBGMEnabled || this.isMuted);
