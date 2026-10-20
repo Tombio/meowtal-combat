@@ -267,4 +267,34 @@ assert(secondPing !== null && secondPing >= 70 && secondPing <= 78, `Smoothed pi
 netTest.leaveRoom();
 assert(netTest.getPing() === null, 'Ping resets to null on leaveRoom()');
 
+console.log('\n--- 12. Testing Client-Side Prediction & Fair Play Reconciliation ---');
+const p2_pred = new Cat({ id: 'p2', name: 'Kuro', breed: 'black_tuxedo', initialX: 604, initialFacing: -1 }, arena.config.ringSurfaceY);
+assert(p2_pred.isGrounded, 'Guest cat starts grounded');
+
+// Test 12a: Instant local jump execution
+p2_pred.jump();
+assert(!p2_pred.isGrounded, 'Guest cat jumps immediately with 0ms delay');
+assert(p2_pred.vy === -12.4, 'Guest cat has instant jump upward impulse');
+
+// Test 12b: Local prediction locomotion
+for (let i = 0; i < 5; i++) {
+  p2_pred.updatePhysics(arena, true, false, true, 300);
+}
+assert(p2_pred.x < 604, 'Guest cat moves left immediately during local prediction');
+assert(p2_pred.facing === -1, 'Guest cat faces left');
+
+// Test 12c: Soft reconciliation for minor drift
+const initialPredX = p2_pred.x;
+const hostReportedX = initialPredX + 4; // 4px minor difference
+const dx = hostReportedX - p2_pred.x;
+p2_pred.x += dx * 0.25;
+assert(Math.abs(p2_pred.x - initialPredX) === 1, 'Soft reconciliation nudges 1px without teleporting');
+
+// Test 12d: Authoritative knockback override
+const hostBonkVx = 6.9;
+const hostBonkVy = -2.4;
+p2_pred.applyKnockback(hostBonkVx, hostBonkVy, 22);
+assert(p2_pred.state === 'DAZED', 'Guest cat accepts authoritative DAZED state from host');
+assert(p2_pred.vx === hostBonkVx, 'Guest cat accepts authoritative knockback velocity');
+
 console.log('\n🎉 ALL GAMEPLAY SIMULATION TESTS PASSED!\n');

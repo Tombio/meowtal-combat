@@ -42,6 +42,9 @@ class CatSumoGame {
   private latestBumpPacket: BumpEventPacket | null = null;
   private bumpPacketExpiryTick: number = 0;
 
+  // Host input delay buffer to level playing field with guest
+  private hostInputQueue: Array<{ left: boolean; right: boolean; jump: boolean; justJump: boolean }> = [];
+
   constructor() {
     this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
     const context = this.canvas.getContext('2d');
@@ -214,9 +217,16 @@ class CatSumoGame {
 
     this.network.onRemoteStateReceived = (state: NetworkStateSnapshot) => {
       if (!this.network.isHost()) {
-        // Guest receives Host's authoritative state
-        this.p1.x = state.p1.x;
-        this.p1.y = state.p1.y;
+        // 1. P1 (Host Cat): Host is authoritative, gently smooth out packet arrival jitter
+        const dxP1 = state.p1.x - this.p1.x;
+        const dyP1 = state.p1.y - this.p1.y;
+        if (Math.abs(dxP1) < 40 && Math.abs(dyP1) < 40) {
+          this.p1.x += dxP1 * 0.55;
+          this.p1.y += dyP1 * 0.55;
+        } else {
+          this.p1.x = state.p1.x;
+          this.p1.y = state.p1.y;
+        }
         this.p1.vx = state.p1.vx;
         this.p1.vy = state.p1.vy;
         this.p1.state = state.p1.state as any;
@@ -224,12 +234,39 @@ class CatSumoGame {
         if (state.p1.scaleX !== undefined) this.p1.scaleX = state.p1.scaleX;
         if (state.p1.scaleY !== undefined) this.p1.scaleY = state.p1.scaleY;
 
-        this.p2.x = state.p2.x;
-        this.p2.y = state.p2.y;
-        this.p2.vx = state.p2.vx;
-        this.p2.vy = state.p2.vy;
-        this.p2.state = state.p2.state as any;
-        this.p2.facing = state.p2.facing as any;
+        // 2. P2 (Guest Cat with Client-Side Prediction):
+        // If Host reports combat knockback / DAZED, RING_OUT, or CELEBRATING, accept Host's authoritative state immediately!
+        if (state.p2.state === 'DAZED' || state.p2.state === 'RING_OUT' || state.p2.state === 'CELEBRATING') {
+          this.p2.x = state.p2.x;
+          this.p2.y = state.p2.y;
+          this.p2.vx = state.p2.vx;
+          this.p2.vy = state.p2.vy;
+          this.p2.state = state.p2.state as any;
+          this.p2.facing = state.p2.facing as any;
+        } else {
+          // Normal locomotion: Soft position reconciliation
+          const dxP2 = state.p2.x - this.p2.x;
+          const dyP2 = state.p2.y - this.p2.y;
+
+          if (Math.abs(dxP2) > 35 || Math.abs(dyP2) > 40) {
+            // Major desync: hard snap to Host
+            this.p2.x = state.p2.x;
+            this.p2.y = state.p2.y;
+            this.p2.vx = state.p2.vx;
+            this.p2.vy = state.p2.vy;
+          } else {
+            // Minor drift: smoothly nudge towards Host without interrupting local jump or walk
+            this.p2.x += dxP2 * 0.25;
+            if (this.p2.isGrounded && state.p2.vy === 0) {
+              this.p2.y = state.p2.y;
+            }
+          }
+
+          if (this.p2.state !== 'DAZED' && this.p2.state !== 'RING_OUT') {
+            this.p2.facing = state.p2.facing as any;
+          }
+        }
+
         if (state.p2.scaleX !== undefined) this.p2.scaleX = state.p2.scaleX;
         if (state.p2.scaleY !== undefined) this.p2.scaleY = state.p2.scaleY;
 
@@ -353,6 +390,7 @@ class CatSumoGame {
   }
 
   private resetCatsForRound(): void {
+    this.hostInputQueue = [];
     const surfaceY = this.arena.config.ringSurfaceY;
     this.p1.resetPosition(300, surfaceY, 1);
     this.p2.resetPosition(604, surfaceY, -1);
@@ -435,22 +473,37 @@ class CatSumoGame {
     if (this.hud.matchPhase === 'FIGHT') {
       const isOnlineGuest = this.network.isConnected() && !this.network.isHost();
 
-      // In online guest mode, send local inputs to host
+      // In online guest mode: local prediction for P2 (0ms input lag!)
       if (isOnlineGuest) {
+        const left = this.input.isDown('p2', 'left');
+        const right = this.input.isDown('p2', 'right');
+        const jumpHeld = this.input.isDown('p2', 'jump');
+        const justJump = this.input.isJustPressed('p2', 'jump');
+
         this.network.sendInputs({
           seq: this.tickCount++,
-          left: this.input.isDown('p2', 'left'),
-          right: this.input.isDown('p2', 'right'),
-          jump: this.input.isDown('p2', 'jump'),
+          left,
+          right,
+          jump: jumpHeld,
         });
 
-        if (this.input.isJustPressed('p2', 'jump') && this.p2.isGrounded) {
+        // Instant local jump execution
+        if (justJump && this.p2.isGrounded) {
+          this.p2.jump();
           this.sound.playJump();
         }
 
-        // Keep animations (tail wag, eyes blink, paws step) alive on guest
+        // Local physics prediction for Kuro (P2)
+        this.p2.updatePhysics(
+          this.arena,
+          left,
+          right,
+          jumpHeld,
+          this.p1.x
+        );
+
+        // Keep host cat animation updated on guest
         this.p1.updateAnimation();
-        this.p2.updateAnimation(this.input.isDown('p2', 'jump'));
 
         if (this.p1.dustParticlesToSpawn > 0) {
           this.effects.addDust(this.p1.x + this.p1.width / 2, this.p1.y + this.p1.height, this.p1.dustParticlesToSpawn);
@@ -461,8 +514,40 @@ class CatSumoGame {
           this.p2.dustParticlesToSpawn = 0;
         }
       } else {
-        // Host or Local: Process Jump Inputs
-        if (this.input.isJustPressed('p1', 'jump') && this.p1.isGrounded) {
+        // Host or Local:
+        let p1Left = this.input.isDown('p1', 'left');
+        let p1Right = this.input.isDown('p1', 'right');
+        let p1Jump = this.input.isDown('p1', 'jump');
+        let p1JustJump = this.input.isJustPressed('p1', 'jump');
+
+        // Dynamic input delay buffer for online host to level reaction time with guest
+        if (this.network.isConnected() && this.network.isHost()) {
+          const ping = this.network.getPing() ?? 25;
+          const bufferDepth = ping < 35 ? 1 : (ping < 75 ? 2 : 3);
+
+          this.hostInputQueue.push({
+            left: p1Left,
+            right: p1Right,
+            jump: p1Jump,
+            justJump: p1JustJump,
+          });
+
+          if (this.hostInputQueue.length >= bufferDepth) {
+            const buffered = this.hostInputQueue.shift()!;
+            p1Left = buffered.left;
+            p1Right = buffered.right;
+            p1Jump = buffered.jump;
+            p1JustJump = buffered.justJump;
+          } else {
+            p1Left = false;
+            p1Right = false;
+            p1Jump = false;
+            p1JustJump = false;
+          }
+        }
+
+        // Process Jump Inputs
+        if (p1JustJump && this.p1.isGrounded) {
           this.p1.jump();
           this.sound.playJump();
         }
@@ -474,9 +559,9 @@ class CatSumoGame {
         // Update Cat Locomotion & Physics
         this.p1.updatePhysics(
           this.arena,
-          this.input.isDown('p1', 'left'),
-          this.input.isDown('p1', 'right'),
-          this.input.isDown('p1', 'jump'),
+          p1Left,
+          p1Right,
+          p1Jump,
           this.p2.x
         );
 
