@@ -345,6 +345,8 @@ hostInput.setActiveRole('host');
 assert(!hostInput.isDown('p2', 'right'), 'Host keyboard ArrowRight is ignored for P2 in online host mode');
 assert(!hostInput.isJustPressed('p2', 'right'), 'Host keyboard ArrowRight isJustPressed is ignored for P2 in online host mode');
 assert(hostInput.isDown('p1', 'right'), 'Host keyboard KeyD controls P1 in online host mode');
+assert(hostInput.isKeyForPlayer('KeyA', 'p1'), 'Host keyboard KeyA is mapped to P1');
+assert(!hostInput.isKeyForPlayer('ArrowLeft', 'p2'), 'Host keyboard ArrowLeft is rejected for P2 in online host mode');
 
 // Simulate network input arriving from remote guest for P2
 hostInput.setVirtualAction('p2', 'right', true);
@@ -359,14 +361,23 @@ guestInput.setActiveRole('guest');
 
 assert(!guestInput.isDown('p1', 'right'), 'Guest keyboard KeyD is ignored for P1 in online guest mode');
 assert(guestInput.isDown('p2', 'right'), 'Guest keyboard ArrowRight controls P2 in online guest mode');
+assert(guestInput.isKeyForPlayer('ArrowLeft', 'p2'), 'Guest keyboard ArrowLeft is mapped to P2');
+assert(guestInput.isKeyForPlayer('KeyA', 'p2'), 'Guest keyboard KeyA (WASD) is also mapped to P2 in guest mode');
+assert(!guestInput.isKeyForPlayer('KeyA', 'p1'), 'Guest keyboard KeyA is rejected for P1 in online guest mode');
 
 // In local mode (activeRole is null), both players can use their respective keys
 const localInput = new InputManager();
 localInput.setActiveRole(null);
 (localInput as any).heldKeys.add('KeyD');
 (localInput as any).heldKeys.add('ArrowRight');
+(localInput as any).justPressedKeys.add('KeyA');
+(localInput as any).justPressedKeys.add('ArrowLeft');
 assert(localInput.isDown('p1', 'right'), 'Local mode accepts P1 keyboard inputs');
 assert(localInput.isDown('p2', 'right'), 'Local mode accepts P2 keyboard inputs');
+assert(localInput.isKeyForPlayer('KeyA', 'p1'), 'Local mode maps KeyA to P1');
+assert(localInput.isKeyForPlayer('ArrowLeft', 'p2'), 'Local mode maps ArrowLeft to P2');
+assert(localInput.isPlayerActionJustPressed('p1'), 'Local mode detects any action just pressed for P1');
+assert(localInput.isPlayerActionJustPressed('p2'), 'Local mode detects any action just pressed for P2');
 
 // 13c: Spacebar Ready & 3-2-1 MEOW Countdown in ArcadeHUD
 const arcadeHud = new ArcadeHUD();

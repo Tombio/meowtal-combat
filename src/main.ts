@@ -192,53 +192,61 @@ class CatSumoGame {
     window.addEventListener('pointerdown', startAudioOnUserGesture);
     window.addEventListener('keydown', startAudioOnUserGesture);
 
-    // Space key / Global start input
+    // Global start & ready input listener
     window.addEventListener('keydown', (e) => {
       if (this.keyModal.isOpen() || this.onlineModal.isOpen()) return;
 
-      if (e.code === 'Space') {
-        this.sound.startBGM();
-        if (this.hud.matchPhase === 'TITLE') {
+      this.sound.startBGM();
+
+      if (this.hud.matchPhase === 'TITLE') {
+        if (e.code === 'Space' || e.code === 'Enter' ||
+            this.input.isKeyForPlayer(e.code, 'p1') || this.input.isKeyForPlayer(e.code, 'p2')) {
           this.sound.playTaikoDon();
           this.hud.startMatch();
           this.resetCatsForRound();
-        } else if (this.hud.matchPhase === 'ROUND_READY') {
-          this.handleReadyInput('space');
-        } else if (this.hud.matchPhase === 'MATCH_OVER') {
+        }
+      } else if (this.hud.matchPhase === 'ROUND_READY') {
+        if (e.code === 'Space' || e.code === 'Enter') {
+          this.handleReadyInput('any');
+        } else if (this.input.isKeyForPlayer(e.code, 'p1')) {
+          this.handleReadyInput('p1');
+        } else if (this.input.isKeyForPlayer(e.code, 'p2')) {
+          this.handleReadyInput('p2');
+        }
+      } else if (this.hud.matchPhase === 'MATCH_OVER') {
+        if (e.code === 'Space' || e.code === 'Enter' ||
+            this.input.isKeyForPlayer(e.code, 'p1') || this.input.isKeyForPlayer(e.code, 'p2')) {
           this.sound.playTaikoDon();
           this.p1.roundsWon = 0;
           this.p2.roundsWon = 0;
           this.hud.startMatch();
           this.resetCatsForRound();
         }
-      } else if (this.hud.matchPhase === 'ROUND_READY') {
-        const keyMap = this.input.getKeyMap();
-        if (e.code === keyMap.p1.jump) {
-          this.handleReadyInput('p1');
-        } else if (e.code === keyMap.p2.jump || e.code === 'Enter') {
-          this.handleReadyInput('p2');
-        }
       }
     });
   }
 
-  private handleReadyInput(source: 'space' | 'p1' | 'p2'): void {
+  private handleReadyInput(source: 'any' | 'p1' | 'p2'): void {
     if (this.hud.matchPhase !== 'ROUND_READY') return;
 
     if (this.network.isConnected()) {
       if (this.network.isHost()) {
-        // Online Host is Mochi (P1)
-        if (!this.hud.p1Ready) {
-          this.hud.p1Ready = true;
-          this.sound.playTaikoKa();
-          this.broadcastStateSnapshot();
+        // Online Host is Mochi (P1): ready upon any host key or P1 action
+        if (source === 'p1' || source === 'any') {
+          if (!this.hud.p1Ready) {
+            this.hud.p1Ready = true;
+            this.sound.playTaikoKa();
+            this.broadcastStateSnapshot();
+          }
         }
       } else {
-        // Online Guest is Kuro (P2)
-        if (!this.hud.p2Ready) {
-          this.hud.p2Ready = true;
-          this.sound.playTaikoKa();
-          this.network.sendSignal({ type: 'PLAYER_READY' });
+        // Online Guest is Kuro (P2): ready upon any guest key or P2 action
+        if (source === 'p2' || source === 'any') {
+          if (!this.hud.p2Ready) {
+            this.hud.p2Ready = true;
+            this.sound.playTaikoKa();
+            this.network.sendSignal({ type: 'PLAYER_READY' });
+          }
         }
       }
     } else {
@@ -254,7 +262,7 @@ class CatSumoGame {
           this.sound.playTaikoKa();
         }
       } else {
-        // Space key: ready P1 first, then P2 (or both if pressed again)
+        // Space / Enter / 'any' key: ready P1 first, then P2 (or both if pressed again)
         if (!this.hud.p1Ready) {
           this.hud.p1Ready = true;
           this.sound.playTaikoKa();
@@ -574,12 +582,12 @@ class CatSumoGame {
       return;
     }
 
-    // Pre-round ready phase: wait for both players to press Space / Jump
+    // Pre-round ready phase: wait for both players to ack via any mapped key or button
     if (this.hud.matchPhase === 'ROUND_READY') {
-      if (this.input.isJustPressed('p1', 'jump')) {
+      if (this.input.isPlayerActionJustPressed('p1')) {
         this.handleReadyInput('p1');
       }
-      if (this.input.isJustPressed('p2', 'jump')) {
+      if (this.input.isPlayerActionJustPressed('p2')) {
         this.handleReadyInput('p2');
       }
       if (this.network.isConnected() && this.network.isHost()) {

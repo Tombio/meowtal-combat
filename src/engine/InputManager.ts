@@ -188,6 +188,40 @@ export class InputManager {
   }
 
   /**
+   * Checks if any action (left, right, or jump) was just pressed for the player,
+   * respecting role isolation and virtual inputs.
+   */
+  public isPlayerActionJustPressed(player: PlayerId): boolean {
+    return this.isJustPressed(player, 'left') ||
+           this.isJustPressed(player, 'right') ||
+           this.isJustPressed(player, 'jump');
+  }
+
+  /**
+   * Checks if a given physical keyboard code is mapped to any action for the player.
+   */
+  public isKeyForPlayer(code: string, player: PlayerId): boolean {
+    // In online mode: host physical keyboard is only for P1, guest physical keyboard is only for P2
+    if (this.activeRole === 'host' && player === 'p2') {
+      return false;
+    }
+    if (this.activeRole === 'guest' && player === 'p1') {
+      return false;
+    }
+
+    const map = this.keyMap[player];
+    let matches = code === map.left || code === map.right || code === map.jump;
+
+    // On guest, allow WASD for P2 as well
+    if (this.activeRole === 'guest' && player === 'p2') {
+      const p1Map = this.keyMap.p1;
+      matches = matches || code === p1Map.left || code === p1Map.right || code === p1Map.jump;
+    }
+
+    return matches;
+  }
+
+  /**
    * Clears just pressed keys at end of each frame
    */
   public update(): void {

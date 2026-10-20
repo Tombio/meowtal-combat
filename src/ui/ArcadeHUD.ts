@@ -49,7 +49,7 @@ export class ArcadeHUD {
     this.phaseTimer = 0;
     this.matchTimer = 60;
     this.announcementText = this.currentRound >= 5 ? 'FINAL ROUND' : `ROUND ${this.currentRound}`;
-    this.announcementSubtext = 'BOTH PLAYERS PRESS [SPACE]';
+    this.announcementSubtext = 'PRESS ANY BUTTON TO READY';
   }
 
   public startCountdown(): void {
@@ -190,15 +190,15 @@ export class ArcadeHUD {
     ctx.shadowBlur = 12;
     ctx.fillText(this.announcementText, width / 2, centerY - 20);
 
-    // Prompt line: "PRESS [SPACE] TO READY"
+    // Prompt line: "PRESS ANY BUTTON TO READY"
     ctx.font = '9px "Press Start 2P", monospace';
     ctx.fillStyle = '#ffffff';
     ctx.shadowBlur = 0;
-    ctx.fillText('BOTH PLAYERS MUST PRESS [SPACE] TO READY', width / 2, centerY + 4);
+    ctx.fillText('PRESS ANY BUTTON TO READY', width / 2, centerY + 4);
 
     // Player Ready Badges
     // Left: Mochi (P1)
-    const p1ReadyText = this.p1Ready ? '★ MOCHI: READY!' : '★ MOCHI: [SPACE]';
+    const p1ReadyText = this.p1Ready ? '★ MOCHI: READY!' : '★ MOCHI: READY?';
     const p1Color = this.p1Ready ? '#00ff66' : (Math.floor(this.frameCounter / 20) % 2 === 0 ? '#ff9800' : '#888888');
     ctx.font = '10px "Press Start 2P", monospace';
     ctx.fillStyle = p1Color;
@@ -214,7 +214,7 @@ export class ArcadeHUD {
     ctx.fillText('VS', width / 2, centerY + 34);
 
     // Right: Kuro (P2)
-    const p2ReadyText = this.p2Ready ? 'READY: KURO ★' : '[SPACE] :KURO ★';
+    const p2ReadyText = this.p2Ready ? 'READY: KURO ★' : 'READY? :KURO ★';
     const p2Color = this.p2Ready ? '#00e5ff' : (Math.floor(this.frameCounter / 20) % 2 === 0 ? '#00e5ff' : '#888888');
     ctx.fillStyle = p2Color;
     ctx.shadowColor = this.p2Ready ? '#00e5ff' : '#00b0ff';
