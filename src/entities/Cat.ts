@@ -250,6 +250,11 @@ export class Cat {
       this.vx *= 0.86;
       this.x += this.vx;
 
+      // Platform support check (cannot stand on empty air over pit)
+      if (!arena.isOnPlatform(this.x, this.width)) {
+        this.isGrounded = false;
+      }
+
       // Platform gravity / landing while parrying in air
       if (!this.isGrounded || this.vy !== 0) {
         this.vy += 0.88;
@@ -268,6 +273,14 @@ export class Cat {
         }
       }
 
+      // Check ring out even during parry
+      if (arena.isRingOut(this.x, this.y, this.width, this.height)) {
+        this.state = 'RING_OUT';
+        this.scaleX = 0.8;
+        this.scaleY = 1.2;
+        return;
+      }
+
       // If active window expires without hit: transition to PARRY_WHIFF recovery!
       if (this.parryTimer <= 0) {
         this.state = 'PARRY_WHIFF';
@@ -283,6 +296,11 @@ export class Cat {
       this.parryWhiffTimer--;
       this.vx *= 0.88;
       this.x += this.vx;
+
+      // Platform support check
+      if (!arena.isOnPlatform(this.x, this.width)) {
+        this.isGrounded = false;
+      }
 
       if (!this.isGrounded || this.vy !== 0) {
         this.vy += 0.88;
@@ -300,6 +318,14 @@ export class Cat {
         }
       }
 
+      // Check ring out during whiff
+      if (arena.isRingOut(this.x, this.y, this.width, this.height)) {
+        this.state = 'RING_OUT';
+        this.scaleX = 0.8;
+        this.scaleY = 1.2;
+        return;
+      }
+
       if (this.parryWhiffTimer <= 0) {
         this.state = this.isGrounded ? 'IDLE' : 'JUMP_FALL';
       }
@@ -308,23 +334,14 @@ export class Cat {
 
     // Handle Ring Out state
     if (this.state === 'RING_OUT') {
-      const ringSurface = arena.config.ringSurfaceY;
-      // Safety guard: if cat is on Dohyo platform, recover cleanly from RING_OUT
-      if (arena.isOnPlatform(this.x, this.width) && (this.y + this.height) <= ringSurface + 16) {
-        this.state = 'IDLE';
-        this.y = ringSurface - this.height;
-        this.vy = 0;
-        this.isGrounded = true;
-      } else {
-        this.vy += 0.55; // Gravity in pit
-        this.x += this.vx;
-        this.y += this.vy;
-        return;
-      }
+      this.vy += 0.55; // Gravity in pit
+      this.x += this.vx;
+      this.y += this.vy;
+      return;
     }
 
     // Check if falling off arena into pit
-    if (arena.isRingOut(this.x, this.y, this.width)) {
+    if (arena.isRingOut(this.x, this.y, this.width, this.height)) {
       this.state = 'RING_OUT';
       this.scaleX = 0.8;
       this.scaleY = 1.2;
@@ -352,6 +369,14 @@ export class Cat {
       const isAboveRingHorizontally = arena.isOnPlatform(this.x, this.width);
       if (!isAboveRingHorizontally) {
         this.isGrounded = false;
+      }
+
+      if (arena.isRingOut(this.x, this.y, this.width, this.height)) {
+        this.endTurboAttack();
+        this.state = 'RING_OUT';
+        this.scaleX = 0.8;
+        this.scaleY = 1.2;
+        return;
       }
 
       this.turboDashTimer--;

@@ -38,6 +38,16 @@ export class CPUController {
       return;
     }
 
+    // If CPU has already fallen off the Dohyo ledge into the pit, clear inputs
+    const feetY = cpuCat.y + cpuCat.height;
+    if (!arena.isOnPlatform(cpuCat.x, cpuCat.width) && feetY > arena.config.ringSurfaceY + 8) {
+      this.input.setVirtualAction('p2', 'left', false);
+      this.input.setVirtualAction('p2', 'right', false);
+      this.input.setVirtualAction('p2', 'jump', false);
+      this.input.setVirtualAction('p2', 'parry', false);
+      return;
+    }
+
     const ringLeft = arena.config.ringLeft;
     const ringRight = arena.config.ringRight;
 

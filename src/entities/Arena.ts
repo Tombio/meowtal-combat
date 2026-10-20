@@ -78,10 +78,21 @@ export class Arena {
     return null;
   }
 
-  public isRingOut(x: number, y: number, width: number): boolean {
+  public isRingOut(x: number, y: number, width: number, height: number = 52): boolean {
     const catCenter = x + width / 2;
-    const isPastEdge = catCenter < this.config.ringLeft || catCenter > this.config.ringRight;
-    const isBelowRing = y > this.config.ringSurfaceY + 20;
-    return isPastEdge && isBelowRing;
+    const feetY = y + height;
+
+    // 1. Off-screen bounds check (cat fully exited bottom or canvas sides)
+    if (y > this.config.canvasHeight || x + width < 0 || x > this.config.canvasWidth) {
+      return true;
+    }
+
+    // 2. Fallen past Dohyo ledge into pit
+    const isPastLeft = (catCenter < this.config.ringLeft) || (x + width <= this.config.ringLeft + 8);
+    const isPastRight = (catCenter > this.config.ringRight) || (x >= this.config.ringRight - 8);
+    const isPastEdge = isPastLeft || isPastRight;
+    const isBelowSurface = feetY > this.config.ringSurfaceY + 12;
+
+    return isPastEdge && isBelowSurface;
   }
 }

@@ -790,4 +790,118 @@ assert(Arena.ALL_STAGES.includes(s1), 'Round stage 1 is valid');
 assert(Arena.ALL_STAGES.includes(s2), 'Round stage 2 is valid');
 assert(s1 !== s2, 'Random stage shuffle does not repeat the same stage consecutively');
 
+// -------------------------------------------------------------
+// TEST SUITE 18: Left & Right Dohyo Edge Ring-Out Physics
+// -------------------------------------------------------------
+console.log('\n--- 18. Testing Left & Right Dohyo Edge Ring-Out Physics ---');
+const ringOutArena = new Arena(960, 540);
+const edgeInput = new InputManager();
+const edgeCpu = new CPUController(edgeInput);
+const edgeSound = new SoundSynthesizer();
+const edgeCollision = new CollisionEngine(edgeSound);
+
+// 18a: Mochi pushes Kuro off the left Dohyo edge (the exact reported bug)
+for (let p2StartX = 180; p2StartX <= 210; p2StartX += 10) {
+  edgeCollision.resetCooldown();
+  const mochi = new Cat({ id: 'p1', name: 'Mochi', breed: 'ginger_tabby', initialX: p2StartX + 20, initialFacing: -1 }, ringOutArena.config.ringSurfaceY);
+  const kuro = new Cat({ id: 'p2', name: 'Kuro', breed: 'black_tuxedo', initialX: p2StartX, initialFacing: 1 }, ringOutArena.config.ringSurfaceY);
+  edgeCpu.reset();
+
+  mochi.y = kuro.y - 30; // Mochi executes a height advantage pounce
+  mochi.vy = 2;
+
+  let ringOutTriggered = false;
+  let ringOutFrame = 0;
+
+  for (let frame = 1; frame <= 60; frame++) {
+    edgeCpu.update(kuro, mochi, ringOutArena);
+    mochi.updatePhysics(ringOutArena, true, false, false, kuro.x);
+    kuro.updatePhysics(ringOutArena, edgeInput.isDown('p2', 'left'), edgeInput.isDown('p2', 'right'), edgeInput.isDown('p2', 'jump'), mochi.x);
+    edgeCollision.checkAndResolveCats(mochi, kuro);
+
+    if (kuro.state === 'RING_OUT') {
+      ringOutTriggered = true;
+      ringOutFrame = frame;
+      break;
+    }
+  }
+
+  assert(ringOutTriggered, `Kuro pushed off left edge from x=${p2StartX} triggers RING_OUT without timing out`);
+  assert(ringOutFrame <= 25, `Kuro RING_OUT occurs quickly (${ringOutFrame} frames <= 25)`);
+}
+
+// 18b: Turbo Attack pushes Kuro off the left Dohyo edge
+{
+  edgeCollision.resetCooldown();
+  const mochi = new Cat({ id: 'p1', name: 'Mochi', breed: 'ginger_tabby', initialX: 250, initialFacing: -1 }, ringOutArena.config.ringSurfaceY);
+  const kuro = new Cat({ id: 'p2', name: 'Kuro', breed: 'black_tuxedo', initialX: 195, initialFacing: 1 }, ringOutArena.config.ringSurfaceY);
+  edgeCpu.reset();
+
+  mochi.startTurboAttack(-1);
+
+  let ringOutTriggered = false;
+  let ringOutFrame = 0;
+
+  for (let frame = 1; frame <= 60; frame++) {
+    edgeCpu.update(kuro, mochi, ringOutArena);
+    mochi.updatePhysics(ringOutArena, true, false, false, kuro.x);
+    kuro.updatePhysics(ringOutArena, edgeInput.isDown('p2', 'left'), edgeInput.isDown('p2', 'right'), edgeInput.isDown('p2', 'jump'), mochi.x);
+    edgeCollision.checkAndResolveCats(mochi, kuro);
+
+    if (kuro.state === 'RING_OUT') {
+      ringOutTriggered = true;
+      ringOutFrame = frame;
+      break;
+    }
+  }
+
+  assert(ringOutTriggered, 'Turbo Attack pushes Kuro off left edge and triggers immediate RING_OUT');
+  assert(ringOutFrame <= 20, `Turbo Attack ring out triggered in ${ringOutFrame} frames`);
+}
+
+// 18c: Right edge ring-out symmetry
+{
+  edgeCollision.resetCooldown();
+  const mochi = new Cat({ id: 'p1', name: 'Mochi', breed: 'ginger_tabby', initialX: 740, initialFacing: 1 }, ringOutArena.config.ringSurfaceY);
+  const kuro = new Cat({ id: 'p2', name: 'Kuro', breed: 'black_tuxedo', initialX: 765, initialFacing: -1 }, ringOutArena.config.ringSurfaceY);
+  edgeCpu.reset();
+
+  mochi.y = kuro.y - 30;
+  mochi.vy = 2;
+
+  let ringOutTriggered = false;
+  for (let frame = 1; frame <= 60; frame++) {
+    edgeCpu.update(kuro, mochi, ringOutArena);
+    mochi.updatePhysics(ringOutArena, false, true, false, kuro.x);
+    kuro.updatePhysics(ringOutArena, edgeInput.isDown('p2', 'left'), edgeInput.isDown('p2', 'right'), edgeInput.isDown('p2', 'jump'), mochi.x);
+    edgeCollision.checkAndResolveCats(mochi, kuro);
+
+    if (kuro.state === 'RING_OUT') {
+      ringOutTriggered = true;
+      break;
+    }
+  }
+
+  assert(ringOutTriggered, 'Kuro pushed off right Dohyo edge triggers RING_OUT cleanly');
+}
+
+// 18d: Ring-out detection during PARRY and PARRY_WHIFF stances
+{
+  const parryCat = new Cat({ id: 'p2', name: 'Kuro', breed: 'black_tuxedo', initialX: 160, initialFacing: 1 }, ringOutArena.config.ringSurfaceY);
+  parryCat.startParry();
+  assert(parryCat.state === 'PARRY', 'Cat is in active PARRY');
+
+  // Let gravity pull parrying cat past platform level over pit
+  for (let f = 0; f < 15; f++) {
+    parryCat.updatePhysics(ringOutArena, false, false, false, 300);
+    if (parryCat.state === 'RING_OUT') break;
+  }
+  assert(parryCat.state === 'RING_OUT', 'Parrying cat falling off Dohyo triggers RING_OUT');
+}
+
+// 18e: Off-screen absolute boundary detection
+assert(ringOutArena.isRingOut(400, 550, 56, 52), 'Cat below canvas floor (y=550 > 540) is RING_OUT regardless of X');
+assert(ringOutArena.isRingOut(-60, 300, 56, 52), 'Cat past canvas left bound is RING_OUT');
+assert(ringOutArena.isRingOut(970, 300, 56, 52), 'Cat past canvas right bound is RING_OUT');
+
 console.log('\n🎉 ALL GAMEPLAY SIMULATION TESTS PASSED!\n');
