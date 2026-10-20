@@ -9,7 +9,9 @@ export interface BumpEvent {
   contactY: number;
   comicText: string;
   shakeMagnitude: number;
+  isMega?: boolean;
   isGiga?: boolean;
+  isParry?: boolean;
 }
 
 export class CollisionEngine {
@@ -49,6 +51,55 @@ export class CollisionEngine {
 
     const contactX = (Math.max(box1.x, box2.x) + Math.min(box1.x + box1.width, box2.x + box2.width)) / 2;
     const contactY = (Math.max(box1.y, box2.y) + Math.min(box1.y + box1.height, box2.y + box2.height)) / 2;
+
+    // -------------------------------------------------------------
+    // DEFENSIVE PARRY RESOLUTION (Just-Guard against attacks & turbos!)
+    // -------------------------------------------------------------
+    const cat1Parry = cat1.state === 'PARRY';
+    const cat2Parry = cat2.state === 'PARRY';
+
+    if (cat1Parry || cat2Parry) {
+      this.lastCollisionTime = now;
+
+      // Both cats parrying at once: bounce harmlessly
+      if (cat1Parry && cat2Parry) {
+        cat1.triggerParrySuccess();
+        cat2.triggerParrySuccess();
+        this.sound.playShove();
+        return null;
+      }
+
+      const defender = cat1Parry ? cat1 : cat2;
+      const attacker = cat1Parry ? cat2 : cat1;
+
+      defender.triggerParrySuccess();
+      const isAttackerTurbo = attacker.state === 'TURBO_DASH';
+
+      if (isAttackerTurbo) {
+        attacker.endTurboAttack();
+        const recoilDir = attacker.facing;
+        attacker.applyKnockback(-recoilDir * 6.5, -2.8, 36); // Stunned for 36 frames!
+      } else {
+        const pushDir = attacker.x < defender.x ? -1 : 1;
+        attacker.applyKnockback(pushDir * 4.8, -2.2, 24); // Stunned for 24 frames!
+      }
+
+      this.sound.playParry();
+      setTimeout(() => {
+        this.sound.playMeow(attacker.breed === 'ginger_tabby' ? 1.1 : 0.9);
+      }, 70);
+
+      return {
+        higherCat: defender,
+        lowerCat: attacker,
+        heightDelta: 999,
+        contactX,
+        contactY,
+        comicText: isAttackerTurbo ? '⚡ TURBO PARRY! ⚡' : '⚡ PARRY! ⚡',
+        shakeMagnitude: isAttackerTurbo ? 12 : 10,
+        isParry: true,
+      };
+    }
 
     // -------------------------------------------------------------
     // TURBO ATTACK IMPACT: GIGA BONK!

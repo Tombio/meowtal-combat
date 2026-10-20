@@ -1,10 +1,11 @@
 export type PlayerId = 'p1' | 'p2';
-export type ActionType = 'left' | 'right' | 'jump';
+export type ActionType = 'left' | 'right' | 'jump' | 'parry';
 
 export interface KeyMap {
   left: string;
   right: string;
   jump: string;
+  parry: string;
 }
 
 export const DEFAULT_KEY_MAP: Record<PlayerId, KeyMap> = {
@@ -12,11 +13,13 @@ export const DEFAULT_KEY_MAP: Record<PlayerId, KeyMap> = {
     left: 'KeyA',
     right: 'KeyD',
     jump: 'KeyW',
+    parry: 'KeyS',
   },
   p2: {
     left: 'ArrowLeft',
     right: 'ArrowRight',
     jump: 'ArrowUp',
+    parry: 'ArrowDown',
   },
 };
 
@@ -26,12 +29,12 @@ export class InputManager {
   private justPressedKeys: Set<string> = new Set();
   private listeningForRebind: { player: PlayerId; action: ActionType; callback: (keyName: string) => void } | null = null;
   private virtualDown: Record<PlayerId, Record<ActionType, boolean>> = {
-    p1: { left: false, right: false, jump: false },
-    p2: { left: false, right: false, jump: false },
+    p1: { left: false, right: false, jump: false, parry: false },
+    p2: { left: false, right: false, jump: false, parry: false },
   };
   private virtualJustPressed: Record<PlayerId, Record<ActionType, boolean>> = {
-    p1: { left: false, right: false, jump: false },
-    p2: { left: false, right: false, jump: false },
+    p1: { left: false, right: false, jump: false, parry: false },
+    p2: { left: false, right: false, jump: false, parry: false },
   };
   private activeRole: 'host' | 'guest' | null = null;
 
@@ -194,7 +197,8 @@ export class InputManager {
   public isPlayerActionJustPressed(player: PlayerId): boolean {
     return this.isJustPressed(player, 'left') ||
            this.isJustPressed(player, 'right') ||
-           this.isJustPressed(player, 'jump');
+           this.isJustPressed(player, 'jump') ||
+           this.isJustPressed(player, 'parry');
   }
 
   /**
@@ -210,12 +214,12 @@ export class InputManager {
     }
 
     const map = this.keyMap[player];
-    let matches = code === map.left || code === map.right || code === map.jump;
+    let matches = code === map.left || code === map.right || code === map.jump || code === map.parry;
 
     // On guest, allow WASD for P2 as well
     if (this.activeRole === 'guest' && player === 'p2') {
       const p1Map = this.keyMap.p1;
-      matches = matches || code === p1Map.left || code === p1Map.right || code === p1Map.jump;
+      matches = matches || code === p1Map.left || code === p1Map.right || code === p1Map.jump || code === p1Map.parry;
     }
 
     return matches;
@@ -229,9 +233,11 @@ export class InputManager {
     this.virtualJustPressed.p1.left = false;
     this.virtualJustPressed.p1.right = false;
     this.virtualJustPressed.p1.jump = false;
+    this.virtualJustPressed.p1.parry = false;
     this.virtualJustPressed.p2.left = false;
     this.virtualJustPressed.p2.right = false;
     this.virtualJustPressed.p2.jump = false;
+    this.virtualJustPressed.p2.parry = false;
   }
 
   public getDisplayKeyName(code: string): string {

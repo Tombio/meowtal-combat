@@ -221,7 +221,7 @@
     }
 
     /* Modals: Fixed Full-Screen Overlays that always fit and scroll */
-    #key-modal, #online-modal {
+    #key-modal, #online-modal, #main-menu-modal {
       position: fixed;
       top: 0;
       left: 0;
@@ -240,8 +240,99 @@
       -webkit-overflow-scrolling: touch;
     }
 
-    #key-modal.active {
+    #key-modal.active, #main-menu-modal.active {
       display: flex;
+    }
+
+    .menu-box {
+      max-width: 520px;
+      border-color: #ff007f !important;
+      box-shadow: 0 0 35px rgba(255, 0, 127, 0.5) !important;
+    }
+
+    .menu-row-interactive {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #24133d;
+      border: 2px solid #4a2869;
+      border-radius: 6px;
+      padding: 8px 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .menu-row-interactive:hover {
+      background: #3c1e63;
+      border-color: #ffe600;
+      transform: translateY(-1px);
+    }
+
+    .menu-item-title {
+      font-size: 10px;
+      color: #ffe600;
+      font-weight: bold;
+    }
+
+    .menu-sub-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .menu-nav-arrow {
+      background: #5c2d91;
+      border: 1px solid #bb86fc;
+      color: #fff;
+      font-size: 8px;
+      padding: 3px 7px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    .menu-nav-arrow:hover {
+      background: #ff007f;
+    }
+
+    .menu-pill-val {
+      background: #12091f;
+      color: #00f0ff;
+      border: 1px solid #00e5ff;
+      border-radius: 3px;
+      padding: 3px 8px;
+      font-size: 8px;
+      min-width: 80px;
+      text-align: center;
+    }
+
+    .menu-hint-tag {
+      font-size: 7px;
+      color: #aaa;
+    }
+
+    .menu-chip-btn {
+      background: #3c1e63;
+      border: 1px solid #bb86fc;
+      color: #fff;
+      font-family: inherit;
+      font-size: 7px;
+      padding: 6px 4px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .menu-chip-btn:hover {
+      background: #ff007f;
+      border-color: #ff80ab;
+    }
+
+    .menu-settings-block {
+      background: #1e1033;
+      border: 1px solid #4a2869;
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin-bottom: 8px;
     }
 
     .modal-box {
@@ -594,13 +685,6 @@
         overflow: hidden;
       }
     }
-        padding: 6px 1px;
-        font-size: 6px;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-        overflow: hidden;
-      }
-    }
   </style>
 </head>
 <body>
@@ -627,12 +711,14 @@
               <div class="key-row"><span>LEFT</span><button class="key-bind-btn" data-player="p1" data-action="left">A</button></div>
               <div class="key-row"><span>RIGHT</span><button class="key-bind-btn" data-player="p1" data-action="right">D</button></div>
               <div class="key-row"><span>JUMP</span><button class="key-bind-btn" data-player="p1" data-action="jump">W</button></div>
+              <div class="key-row"><span>PARRY</span><button class="key-bind-btn" data-player="p1" data-action="parry">S</button></div>
             </div>
             <div>
               <div class="badge-p2" style="margin-bottom: 10px; font-size: 10px;">★ P2: KURO ★</div>
               <div class="key-row"><span>LEFT</span><button class="key-bind-btn" data-player="p2" data-action="left">ArrowLeft</button></div>
               <div class="key-row"><span>RIGHT</span><button class="key-bind-btn" data-player="p2" data-action="right">ArrowRight</button></div>
               <div class="key-row"><span>JUMP</span><button class="key-bind-btn" data-player="p2" data-action="jump">ArrowUp</button></div>
+              <div class="key-row"><span>PARRY</span><button class="key-bind-btn" data-player="p2" data-action="parry">ArrowDown</button></div>
             </div>
           </div>
           <p style="font-size: 7px; color: #aaa; margin-bottom: 14px;">Click any button above, then press your desired key on keyboard!</p>
@@ -683,6 +769,80 @@
           </div>
         </div>
       </div>
+
+      <!-- Arcade Main Menu Modal inside screen -->
+      <div id="main-menu-modal">
+        <div class="modal-box menu-box">
+          <div class="modal-title">★ ARCADE MAIN MENU ★</div>
+
+          <div class="menu-list">
+            <!-- 1P VS CPU -->
+            <div id="menu-row-cpu" class="menu-row-interactive">
+              <span class="menu-item-title">🐱 1P VS CPU</span>
+              <div class="menu-sub-controls">
+                <button id="menu-btn-diff-prev" class="menu-nav-arrow" aria-label="Previous Difficulty">◀</button>
+                <span id="menu-diff-label" class="menu-pill-val">NORMAL</span>
+                <button id="menu-btn-diff-next" class="menu-nav-arrow" aria-label="Next Difficulty">▶</button>
+              </div>
+            </div>
+
+            <!-- 2P LOCAL -->
+            <div id="menu-row-local" class="menu-row-interactive">
+              <span class="menu-item-title">🥋 2P LOCAL VERSUS</span>
+              <span class="menu-hint-tag">[P1 vs P2]</span>
+            </div>
+
+            <!-- ONLINE DUEL -->
+            <div id="menu-row-online" class="menu-row-interactive">
+              <span class="menu-item-title">🌐 ONLINE DUEL</span>
+              <span class="menu-hint-tag" style="color: #00f0ff;">[P2P WEBRTC]</span>
+            </div>
+
+            <!-- STAGE SELECT -->
+            <div id="menu-row-stage" class="menu-row-interactive" style="cursor: default;">
+              <span class="menu-item-title">⛩️ ARENA STAGE</span>
+              <div class="menu-sub-controls">
+                <button id="menu-btn-stage-prev" class="menu-nav-arrow" aria-label="Previous Stage">◀</button>
+                <span id="menu-stage-label" class="menu-pill-val">🎲 RANDOM</span>
+                <button id="menu-btn-stage-next" class="menu-nav-arrow" aria-label="Next Stage">▶</button>
+              </div>
+            </div>
+
+            <!-- SETTINGS & AUDIO -->
+            <div class="menu-settings-block">
+              <div style="font-size: 8px; color: #ff80ab; margin-bottom: 6px; text-align: left;">⚙ SETTINGS & AUDIO:</div>
+              <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
+                <button id="menu-btn-crt" class="menu-chip-btn">CRT: ON</button>
+                <button id="menu-btn-sfx" class="menu-chip-btn">SFX: ON</button>
+                <button id="menu-btn-bgm" class="menu-chip-btn">BGM: ON</button>
+                <button id="menu-btn-track" class="menu-chip-btn">⏭ TRACK</button>
+              </div>
+            </div>
+
+            <!-- HOW TO PLAY / MOVES REFERENCE -->
+            <div id="menu-row-howto" class="menu-row-interactive">
+              <span class="menu-item-title">📜 MOVES & HOW TO PLAY</span>
+              <span class="menu-hint-tag">[CLICK TO VIEW]</span>
+            </div>
+
+            <!-- Collapsible How to play panel -->
+            <div id="how-to-play-panel" style="display: none; background: #130a24; border: 1px solid #5c2d91; border-radius: 4px; padding: 10px; font-size: 7px; text-align: left; line-height: 1.6;">
+              <div style="color: #ffe600; font-weight: bold; margin-bottom: 4px;">• BASIC CONTROLS:</div>
+              <div>P1: [A] Left, [D] Right, [W] Jump, [S] Parry</div>
+              <div>P2: [←] Left, [→] Right, [↑] Jump, [↓] Parry</div>
+              <div style="color: #00f0ff; font-weight: bold; margin: 6px 0 4px;">• ⚡ TURBO ATTACK (DRAGON PUNCH):</div>
+              <div>Quickly tap <b style="color: #fff;">Back → Back → Forward</b> within 666ms! Cat charges ~160px for a devastating <b>💥 GIGA BONK!</b></div>
+              <div style="color: #ff007f; font-weight: bold; margin: 6px 0 4px;">• 🛡️ DEFENSIVE PARRY:</div>
+              <div>Tap [S] or [↓] right before impact (12-frame window). Negates knockback and <b>stuns the attacker for 24-36 frames!</b> Cannot be held (18-frame whiff penalty).</div>
+            </div>
+          </div>
+
+          <div style="margin-top: 14px; display: flex; justify-content: center; gap: 8px;">
+            <button id="menu-resume-btn" class="arcade-btn" style="background: linear-gradient(180deg, #ff0055, #c2185b); border-color: #ff80ab; font-size: 9px; padding: 10px 18px;">▶ RESUME / CLOSE</button>
+            <button id="menu-keys-btn" class="arcade-btn secondary" style="font-size: 9px; padding: 10px 14px;">⌨ REBIND KEYS</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Virtual Touch Controls for Mobile / Tablets -->
@@ -692,6 +852,10 @@
         <button id="touch-btn-right" class="touch-arcade-btn" aria-label="Waddle Right">▶</button>
       </div>
       <div class="touch-cluster">
+        <button id="touch-btn-parry" class="touch-arcade-btn" style="background: linear-gradient(180deg, #673ab7, #311b92); border-color: #9575cd; width: 56px; height: 56px; font-size: 8px;" aria-label="Parry">
+          <span style="font-size: 14px;">🛡️</span>
+          <span style="font-size: 6px;">PARRY</span>
+        </button>
         <button id="touch-btn-jump" class="touch-arcade-btn jump-btn" aria-label="Jump or Bonk">
           <span class="jump-icon">🐾</span>
           <span class="jump-label">JUMP</span>
@@ -701,18 +865,14 @@
 
     <div id="control-bar">
       <div class="player-indicator">
-        <span class="badge-p1">P1 (Ginger Mochi): [A/D/W]</span>
+        <span class="badge-p1">P1 (Ginger Mochi): [A/D/W/S]</span>
         <span>|</span>
-        <span class="badge-p2">P2 (Black Kuro): [Arrows]</span>
+        <span class="badge-p2">P2 (Black Kuro): [Arrows / CPU]</span>
       </div>
       <div id="toolbar-btn-group">
+        <button id="btn-menu" class="arcade-btn" style="background: linear-gradient(180deg, #ff0055, #c2185b); border-color: #ff80ab;">☰ MENU</button>
         <button id="btn-online" class="arcade-btn" style="background: linear-gradient(180deg, #00e5ff, #0091ea); border-color: #80d8ff;">🌐 ONLINE</button>
         <button id="btn-touch" class="arcade-btn secondary">🎮 TOUCH</button>
-        <button id="btn-keys" class="arcade-btn secondary">KEYS</button>
-        <button id="btn-crt" class="arcade-btn secondary">CRT ON</button>
-        <button id="btn-sound" class="arcade-btn">SFX: ON</button>
-        <button id="btn-bgm" class="arcade-btn">BGM: ON</button>
-        <button id="btn-track" class="arcade-btn secondary">⏭ TRACK</button>
         <button id="btn-fullscreen" class="arcade-btn secondary">⛶ FULL</button>
       </div>
     </div>

@@ -40,6 +40,11 @@
 - **Jump-Over Clearance**: Leap altitude is tuned to allow vaulting cleanly over an opponent to switch sides and evade ring-outs.
 - **Dohyo Ring-Out Detection**: Push your opponent off the platform into the pit to take the round. Best 3 out of 5 rounds wins the tournament.
 
+### 🛡️ Defensive Parry (Just-Guard) & Anti-Camping
+- **12-Frame Just-Guard Window**: Press <kbd>S</kbd> (P1), <kbd>↓</kbd> (P2), or the mobile `🛡️ PARRY` button right before impact to deflect incoming attacks!
+- **Zero Knockback & Attacker Stun**: Absorbs all incoming kinetic momentum and inflicts **24 frames of DAZED stun** on the attacker (or **36 frames against a charging Turbo Attack**, halting their dash with massive recoil).
+- **Anti-Camping Whiff Penalty**: Cannot be held down! Holding or mistiming the parry triggers an **18-frame helpless whiff recovery** (`PARRY_WHIFF` state) with movement locked and full vulnerability, plus a 40-frame cooldown.
+
 ### ⚡ Turbo Attack & Giga Bonk
 - **Dragon Punch Command Combo**: Tap **Back → Back → Forward** relative to your opponent's position within a 666ms window (20 frames per step) to launch a high-speed charge across ~160px (27.5% of the Dohyo).
 - **Airborne Charge**: Works both grounded and in mid-air with aerodynamic horizontal levitation!
@@ -47,6 +52,23 @@
 - **💥 GIGA BONK! 💥**: Direct impact delivers 9.8 px/frame knockback, 28 daze frames, magnitude 16 screen shake, and a 5-frame freeze-frame impact crunch!
 - **Exhaustion Cooldown & Overhead Gauge**: Initiates a 4-second cooldown with a retro neon progress gauge floating over the cat's head. Locomotion speed is halved (50%) during recovery until the bar refills and a chime rings.
 - **⚡ SUPER CLASH! ⚡**: Two cats dashing into each other collide in an explosive super clash blasting both fighters backward.
+
+### 🤖 CPU Opponent AI & Single-Player Mode
+- **1P VS CPU (Default)**: Play solo against an intelligent AI cat opponent without needing a second player.
+- **3 Dynamic AI Difficulties**:
+  - **Easy (Chonky Kitten)**: Playful, slow stalking, occasional jumps, ideal for warm-up.
+  - **Normal (Sensei Neko)**: Spacing control, ring-edge avoidance, tactical counter-jumps.
+  - **Hard (Grandmaster Shihan)**: Reads incoming Turbo Attacks with reactive jump dodges, punishes whiffed/dazed opponents with instant Turbo charges, and executes defensive parries.
+
+### ⛩️ Themed Arenas & Stage Shuffling
+- **Mount Fuji Dojo**: Traditional wood and tatami dohyo framed by cherry blossoms and iconic snow-capped peaks.
+- **Neo-Tokyo Cyberpunk Rooftop**: Neon-drenched synthwave skyline with pulsing holographic signs and cyan grid platform.
+- **Midnight Thunder Shrine**: Storm-weathered slate stone shrine with dynamic rain particles and lightning flash flashes on heavy parries and bonks.
+- **🎲 Random Stage & BGM Shuffling**: Both arenas and 90s chiptune tracks dynamically shuffle between matches and rounds without repeating the same arena or song consecutively.
+
+### ☰ Retro Arcade Main Menu & Clean Toolbar
+- **De-cluttered 4-Button Toolbar**: Replaced cramped buttons with a streamlined bar: `☰ MENU`, `🌐 ONLINE`, `🎮 TOUCH`, and `⛶ FULL`.
+- **Integrated Arcade Overlay**: Access mode selection (1P CPU / 2P Local / Online Duel), difficulty toggles, stage select, CRT/SFX/BGM toggles, key rebinding, and moves reference in one retro cabinet overlay.
 
 ### 🌐 Peer-to-Peer Online Multiplayer
 - **Zero Server Setup**: Powered by direct WebRTC DataChannels using PeerJS with public STUN fallbacks.
@@ -75,16 +97,17 @@
 
 ## 🎮 Controls
 
-| Action | Player 1 (Mochi - Ginger Tabby) | Player 2 (Kuro - Black Cat) | Mobile Touch |
+| Action | Player 1 (Mochi - Ginger Tabby) | Player 2 (Kuro - Black Cat / CPU) | Mobile Touch |
 | :--- | :--- | :--- | :--- |
 | **Move Left** | <kbd>A</kbd> | <kbd>←</kbd> | ◀ Button |
 | **Move Right** | <kbd>D</kbd> | <kbd>→</kbd> | ▶ Button |
 | **Jump / Pounce** | <kbd>W</kbd> | <kbd>↑</kbd> | 🐾 JUMP Button |
+| **🛡️ Defensive Parry** | <kbd>S</kbd> | <kbd>↓</kbd> | 🛡️ PARRY Button |
 | **⚡ Turbo Attack** | Back-Back-Forward (<kbd>A</kbd><kbd>A</kbd><kbd>D</kbd> or <kbd>D</kbd><kbd>D</kbd><kbd>A</kbd>) | Back-Back-Forward (<kbd>←</kbd><kbd>←</kbd><kbd>→</kbd> or <kbd>→</kbd><kbd>→</kbd><kbd>←</kbd>) | Quick ◀ ◀ ▶ or ▶ ▶ ◀ |
-| **Ready Up (Round Start)** | Any P1 Control (<kbd>A</kbd>, <kbd>D</kbd>, <kbd>W</kbd>) | Any P2 Control (<kbd>←</kbd>, <kbd>→</kbd>, <kbd>↑</kbd>) | Touch JUMP / Movement |
+| **Ready Up (Round Start)** | Any P1 Control (<kbd>A</kbd>, <kbd>D</kbd>, <kbd>W</kbd>, <kbd>S</kbd>) | Any P2 Control (<kbd>←</kbd>, <kbd>→</kbd>, <kbd>↑</kbd>, <kbd>↓</kbd> / Auto on CPU) | Touch JUMP / PARRY / Movement |
 | **Start / Rematch** | <kbd>Space</kbd> or <kbd>W</kbd> | <kbd>Space</kbd> or <kbd>↑</kbd> | Touch JUMP |
 
-*Controls can be rebound at any time via the **KEYS** button on the bottom toolbar.*
+*Controls can be rebound at any time via the **☰ MENU → ⌨ REBIND KEYS** modal.*
 
 ---
 

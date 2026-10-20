@@ -19,6 +19,7 @@ export class ArcadeHUD {
   public winnerCat: Cat | null = null;
   public matchTimer: number = 60;
   private frameCounter: number = 0;
+  public isCPUOpponent: boolean = true;
 
   // Pre-round readiness and 3-2-1 MEOW countdown
   public p1Ready: boolean = false;
@@ -214,7 +215,8 @@ export class ArcadeHUD {
     ctx.fillText('VS', width / 2, centerY + 34);
 
     // Right: Kuro (P2)
-    const p2ReadyText = this.p2Ready ? 'READY: KURO ★' : 'READY? :KURO ★';
+    const p2Label = this.isCPUOpponent ? 'CPU' : 'KURO';
+    const p2ReadyText = this.p2Ready ? `READY: ${p2Label} ★` : `READY? :${p2Label} ★`;
     const p2Color = this.p2Ready ? '#00e5ff' : (Math.floor(this.frameCounter / 20) % 2 === 0 ? '#00e5ff' : '#888888');
     ctx.fillStyle = p2Color;
     ctx.shadowColor = this.p2Ready ? '#00e5ff' : '#00b0ff';
@@ -325,7 +327,8 @@ export class ArcadeHUD {
     ctx.font = '12px "Press Start 2P", monospace';
     ctx.fillStyle = '#00e5ff';
     ctx.textAlign = 'right';
-    ctx.fillText('KURO ★', width - 24, 26);
+    const p2TopName = this.isCPUOpponent ? 'KURO (CPU) ★' : 'KURO ★';
+    ctx.fillText(p2TopName, width - 24, 26);
 
     // P2 Golden Fish Win Icons
     for (let i = 0; i < this.maxRoundsToWin; i++) {
@@ -493,7 +496,7 @@ export class ArcadeHUD {
     ctx.fillStyle = '#69f0ae';
     ctx.fillText('• TIME YOUR JUMP TO LEAP OVER & SWITCH SIDES!', width / 2, boxY + 90);
     ctx.fillStyle = '#ffe600';
-    ctx.fillText('• P1: [A / D / W]  |  P2: [ARROWS ← → ↑]', width / 2, boxY + 122);
+    ctx.fillText('• P1: [A/D/W/S:PARRY]  |  P2: [ARROWS / CPU]', width / 2, boxY + 122);
 
     // Blinking START
     if (Math.floor(this.frameCounter / 30) % 2 === 0) {

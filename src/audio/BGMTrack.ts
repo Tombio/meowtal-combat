@@ -217,17 +217,22 @@ export class BGMTrack {
     return this.currentTrack.title;
   }
 
-  public setRoundTrack(roundNumber: number): string {
-    // Round 1: Neo-Dohyo Techno (136 BPM)
-    // Round 2: Shinobi Dub (110 BPM - Slower & moody)
-    // Round 3: Tokyo Metropolis (124 BPM)
-    // Round 4+: Final Climax Rave (144 BPM)
-    const trackIndex = Math.min(roundNumber - 1, TRACKS.length - 1);
-    return this.setTrack(trackIndex);
+  public setRandomTrack(): string {
+    if (TRACKS.length <= 1) return this.currentTrack.title;
+    let nextIdx: number;
+    do {
+      nextIdx = Math.floor(Math.random() * TRACKS.length);
+    } while (nextIdx === this.currentTrackIndex);
+    return this.setTrack(nextIdx);
+  }
+
+  public setRoundTrack(_roundNumber?: number): string {
+    // Random non-repeating track on every round
+    return this.setRandomTrack();
   }
 
   public nextTrack(): string {
-    return this.setTrack(this.currentTrackIndex + 1);
+    return this.setRandomTrack();
   }
 
   public getCurrentTrackTitle(): string {

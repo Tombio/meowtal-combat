@@ -1,3 +1,6 @@
+export type ArenaStage = 'dojo' | 'cyberpunk' | 'thunder';
+export type StageSelection = 'random' | ArenaStage;
+
 export interface ArenaConfig {
   ringLeft: number;
   ringRight: number;
@@ -10,6 +13,10 @@ export interface ArenaConfig {
 
 export class Arena {
   public readonly config: ArenaConfig;
+  public stageSelection: StageSelection = 'random';
+  public currentStage: ArenaStage = 'dojo';
+
+  public static readonly ALL_STAGES: ArenaStage[] = ['dojo', 'cyberpunk', 'thunder'];
 
   constructor(canvasWidth = 960, canvasHeight = 540) {
     const ringWidth = 580;
@@ -27,6 +34,32 @@ export class Arena {
       canvasHeight,
       teeterMargin: 40,
     };
+  }
+
+  public setStageSelection(sel: StageSelection): void {
+    this.stageSelection = sel;
+    if (sel !== 'random') {
+      this.currentStage = sel;
+    }
+  }
+
+  public prepareRoundStage(): ArenaStage {
+    if (this.stageSelection === 'random') {
+      const candidates = Arena.ALL_STAGES.filter(s => s !== this.currentStage);
+      const next = candidates[Math.floor(Math.random() * candidates.length)];
+      this.currentStage = next;
+    } else {
+      this.currentStage = this.stageSelection;
+    }
+    return this.currentStage;
+  }
+
+  public getStageDisplayName(): string {
+    switch (this.currentStage) {
+      case 'dojo': return 'MOUNT FUJI DOJO';
+      case 'cyberpunk': return 'NEO-TOKYO ROOFTOP';
+      case 'thunder': return 'MIDNIGHT THUNDER';
+    }
   }
 
   public isOnPlatform(x: number, width: number): boolean {

@@ -11,6 +11,7 @@ export interface PlayerInputPacket {
   right: boolean;
   jump: boolean;
   turbo?: boolean;
+  parry?: boolean;
 }
 
 export interface BumpEventPacket {
@@ -20,6 +21,7 @@ export interface BumpEventPacket {
   contactY: number;
   isMega: boolean;
   isGiga?: boolean;
+  isParry?: boolean;
   shakeMagnitude: number;
   heightDelta: number;
 }

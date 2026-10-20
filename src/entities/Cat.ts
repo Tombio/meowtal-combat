@@ -10,7 +10,9 @@ export type CatState =
   | 'TEETER' 
   | 'RING_OUT' 
   | 'CELEBRATING'
-  | 'TURBO_DASH';
+  | 'TURBO_DASH'
+  | 'PARRY'
+  | 'PARRY_WHIFF';
 
 export interface Afterimage {
   x: number;
@@ -71,6 +73,11 @@ export class Cat {
   public readonly turboDashSpeed: number = 10.67; // ~160px reach across 15 frames (~27.5% of Dohyo)
   public afterimages: Afterimage[] = [];
 
+  // Defensive Parry (Just-Guard)
+  public parryTimer: number = 0;       // 12-frame active window (~200ms)
+  public parryWhiffTimer: number = 0;  // 18-frame whiff penalty if missed
+  public parryCooldown: number = 0;    // 40-frame anti-camping cooldown (~667ms)
+
   constructor(config: CatConfig, ringSurfaceY: number) {
     this.id = config.id;
     this.name = config.name;
@@ -96,6 +103,39 @@ export class Cat {
     this.turboCooldown = 0;
     this.turboDashTimer = 0;
     this.afterimages = [];
+    this.parryTimer = 0;
+    this.parryWhiffTimer = 0;
+    this.parryCooldown = 0;
+  }
+
+  public canParry(): boolean {
+    return this.parryTimer === 0 &&
+      this.parryWhiffTimer === 0 &&
+      this.parryCooldown === 0 &&
+      this.state !== 'DAZED' &&
+      this.state !== 'RING_OUT' &&
+      this.state !== 'TURBO_DASH' &&
+      this.state !== 'PARRY' &&
+      this.state !== 'PARRY_WHIFF' &&
+      this.state !== 'CELEBRATING';
+  }
+
+  public startParry(): void {
+    this.state = 'PARRY';
+    this.parryTimer = 12; // 12-frame active just-guard window
+    this.parryCooldown = 40; // 40-frame recovery cooldown
+    this.vx *= 0.3; // halt momentum on brace
+    this.scaleX = 0.82;
+    this.scaleY = 1.25; // tensed defensive brace
+  }
+
+  public triggerParrySuccess(): void {
+    this.parryTimer = 0;
+    this.parryWhiffTimer = 0;
+    this.parryCooldown = 15; // fast recovery on successful parry!
+    this.state = this.isGrounded ? 'IDLE' : 'JUMP_FALL';
+    this.scaleX = 1.35;
+    this.scaleY = 0.75;
   }
 
   public canTurboAttack(): boolean {
@@ -199,6 +239,71 @@ export class Cat {
     // Cooldown countdown
     if (this.turboCooldown > 0) {
       this.turboCooldown--;
+    }
+    if (this.parryCooldown > 0) {
+      this.parryCooldown--;
+    }
+
+    // Handle Active Parry Stance (12-frame active window)
+    if (this.state === 'PARRY') {
+      this.parryTimer--;
+      this.vx *= 0.86;
+      this.x += this.vx;
+
+      // Platform gravity / landing while parrying in air
+      if (!this.isGrounded || this.vy !== 0) {
+        this.vy += 0.88;
+        if (this.vy > 14) this.vy = 14;
+        this.y += this.vy;
+      }
+
+      // Check Dohyo Platform landing
+      const ringSurface = arena.config.ringSurfaceY;
+      if (arena.isOnPlatform(this.x, this.width)) {
+        const feetY = this.y + this.height;
+        if (feetY >= ringSurface && this.vy >= 0 && (feetY - this.vy) <= ringSurface + 16) {
+          this.y = ringSurface - this.height;
+          this.vy = 0;
+          this.isGrounded = true;
+        }
+      }
+
+      // If active window expires without hit: transition to PARRY_WHIFF recovery!
+      if (this.parryTimer <= 0) {
+        this.state = 'PARRY_WHIFF';
+        this.parryWhiffTimer = 18; // 18 frames (~300ms) vulnerable whiff penalty
+        this.scaleX = 1.15;
+        this.scaleY = 0.85;
+      }
+      return;
+    }
+
+    // Handle Parry Whiff Recovery (Vulnerable / Anti-Camping penalty)
+    if (this.state === 'PARRY_WHIFF') {
+      this.parryWhiffTimer--;
+      this.vx *= 0.88;
+      this.x += this.vx;
+
+      if (!this.isGrounded || this.vy !== 0) {
+        this.vy += 0.88;
+        if (this.vy > 14) this.vy = 14;
+        this.y += this.vy;
+      }
+
+      const ringSurface = arena.config.ringSurfaceY;
+      if (arena.isOnPlatform(this.x, this.width)) {
+        const feetY = this.y + this.height;
+        if (feetY >= ringSurface && this.vy >= 0 && (feetY - this.vy) <= ringSurface + 16) {
+          this.y = ringSurface - this.height;
+          this.vy = 0;
+          this.isGrounded = true;
+        }
+      }
+
+      if (this.parryWhiffTimer <= 0) {
+        this.state = this.isGrounded ? 'IDLE' : 'JUMP_FALL';
+      }
+      return;
     }
 
     // Handle Ring Out state

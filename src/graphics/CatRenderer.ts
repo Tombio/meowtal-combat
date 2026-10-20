@@ -310,6 +310,13 @@ export class CatRenderer {
       ctx.arc(-22, -26, 6, 0, Math.PI * 2);
       ctx.arc(22, -26, 6, 0, Math.PI * 2);
       ctx.fill();
+    } else if (cat.state === 'PARRY') {
+      // Defensive guard paws held up tight in front
+      ctx.fillStyle = pawColor;
+      ctx.beginPath();
+      ctx.arc(8, -26, 7, 0, Math.PI * 2);
+      ctx.arc(14, -20, 7, 0, Math.PI * 2);
+      ctx.fill();
     } else if (cat.state === 'WADDLE') {
       // Alternating step paws
       const stepLeft = Math.sin(cat.animTimer * 0.4) * 4;
@@ -344,6 +351,35 @@ export class CatRenderer {
     if (cat.turboCooldown > 0 && cat.state !== 'RING_OUT') {
       this.drawCooldownMeter(ctx, centerX, cat.y - 14, cat.turboCooldown, cat.maxTurboCooldown, cat.animTimer);
     }
+
+    // 13. Defensive Parry Barrier Aura
+    if (cat.state === 'PARRY') {
+      this.drawParryShield(ctx, centerX, bottomY - 26, cat.parryTimer);
+    }
+  }
+
+  private drawParryShield(ctx: CanvasRenderingContext2D, x: number, y: number, timer: number): void {
+    ctx.save();
+    ctx.translate(x, y);
+    const alpha = Math.min(timer / 6, 1.0) * 0.9;
+    ctx.strokeStyle = `rgba(0, 240, 255, ${alpha})`;
+    ctx.lineWidth = 3;
+    ctx.shadowColor = '#00f0ff';
+    ctx.shadowBlur = 14;
+
+    // Hex shield arc
+    ctx.beginPath();
+    ctx.arc(0, 0, 34, -Math.PI * 0.45, Math.PI * 0.45);
+    ctx.stroke();
+
+    // Inner bright spark
+    ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.9})`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(4, 0, 26, -Math.PI * 0.35, Math.PI * 0.35);
+    ctx.stroke();
+
+    ctx.restore();
   }
 
   private drawCooldownMeter(

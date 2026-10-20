@@ -131,21 +131,25 @@ assert(testP1.roundsWon === 3, 'P1 has 3 round wins');
 assert(testP1.roundsWon >= hud.maxRoundsToWin, '3 wins triggers tournament victory!');
 
 console.log('\n--- 7. Testing Dynamic Round BGM Track Switching ---');
-const trackR1 = soundMock.setRoundTrack(1);
-console.log(`Round 1 Track: ${trackR1}`);
-assert(trackR1.includes('136 BPM'), 'Round 1 loads fast 136 BPM Neo-Dohyo Acid');
+const track0 = (soundMock as any).bgm.setTrack(0);
+assert(track0.includes('136 BPM'), 'Track 0 loads fast 136 BPM Neo-Dohyo Acid');
 
-const trackR2 = soundMock.setRoundTrack(2);
-console.log(`Round 2 Track: ${trackR2}`);
-assert(trackR2.includes('110 BPM'), 'Round 2 switches to slower 110 BPM Shinobi Dub');
+const track1 = (soundMock as any).bgm.setTrack(1);
+assert(track1.includes('110 BPM'), 'Track 1 switches to slower 110 BPM Shinobi Dub');
 
-const trackR3 = soundMock.setRoundTrack(3);
-console.log(`Round 3 Track: ${trackR3}`);
-assert(trackR3.includes('124 BPM'), 'Round 3 switches to 124 BPM Tokyo Metropolis');
+const track2 = (soundMock as any).bgm.setTrack(2);
+assert(track2.includes('124 BPM'), 'Track 2 switches to 124 BPM Tokyo Metropolis');
 
-const manualNext = soundMock.nextTrack();
-console.log(`Manual Next Track: ${manualNext}`);
-assert(manualNext.includes('144 BPM'), 'Next track advances to 144 BPM Final Climax Rave');
+const track3 = (soundMock as any).bgm.setTrack(3);
+assert(track3.includes('144 BPM'), 'Track 3 switches to 144 BPM Final Climax Rave');
+
+const rnd1 = soundMock.setRoundTrack(1);
+console.log(`Random Track 1: ${rnd1}`);
+assert(typeof rnd1 === 'string' && rnd1.length > 0, 'Round 1 picks random track');
+
+const rnd2 = soundMock.setRoundTrack(2);
+console.log(`Random Track 2: ${rnd2}`);
+assert(typeof rnd2 === 'string' && rnd2.length > 0 && rnd2 !== rnd1, 'Round 2 picks a non-repeating random track');
 
 console.log('\n--- 8. Testing Mobile Touch Controls & Virtual Input Integration ---');
 const inputMgr = new InputManager();
@@ -630,5 +634,160 @@ for (let f = 0; f < 10; f++) {
   slowCat.updatePhysics(arena, false, true, false, 600);
 }
 assert(slowCat.vx > 3.0, `Full speed restored after cooldown (${slowCat.vx.toFixed(2)} px/frame)`);
+
+// -------------------------------------------------------------
+// TEST SUITE 15: Defensive Parry (Just-Guard) & Anti-Camping
+// -------------------------------------------------------------
+console.log('\n--- 15. Testing Defensive Parry (Just-Guard) & Anti-Camping ---');
+const parryCat = new Cat({ id: 'p1', name: 'Mochi', breed: 'ginger_tabby', initialX: 300, initialFacing: 1 }, arena.config.ringSurfaceY);
+assert(parryCat.canParry(), 'Fresh cat can initiate parry');
+
+// 15a: Active 12-Frame Parry Window
+parryCat.startParry();
+assert(parryCat.state === 'PARRY', 'Cat state transitions to PARRY');
+assert(parryCat.parryTimer === 12, 'Parry has exact 12-frame active window');
+assert(parryCat.scaleX === 0.82 && parryCat.scaleY === 1.25, 'Cat assumes tense defensive brace scale');
+assert(!parryCat.canParry(), 'Cannot re-trigger parry while already parrying');
+
+// 15b: Anti-Camping Whiff Penalty: holding/timing out results in 18 frames vulnerability
+for (let f = 0; f < 12; f++) {
+  assert(parryCat.state === 'PARRY', `Frame ${f} remains in active PARRY`);
+  parryCat.updatePhysics(arena, false, false, false, 600);
+}
+assert(parryCat.state === 'PARRY_WHIFF', 'Expiring parry without impact transitions into PARRY_WHIFF');
+assert(parryCat.parryWhiffTimer === 18, 'Parry whiff imposes 18 frames of helpless recovery penalty');
+assert(!parryCat.canParry(), 'Cannot parry while in whiff recovery');
+
+// Movement locked during whiff
+for (let f = 0; f < 18; f++) {
+  assert(parryCat.state === 'PARRY_WHIFF', `Whiff frame ${f} locks movement`);
+  parryCat.updatePhysics(arena, true, false, false, 600); // Holding left
+}
+assert(parryCat.state === 'IDLE', 'Returns to IDLE after whiff penalty completes');
+assert(parryCat.parryCooldown > 0, 'Enters recovery cooldown after whiff');
+assert(!parryCat.canParry(), 'Cannot immediately parry during cooldown');
+
+while (parryCat.parryCooldown > 0) {
+  parryCat.updatePhysics(arena, false, false, false, 600);
+}
+assert(parryCat.canParry(), 'Parry available again after cooldown');
+
+// 15c: Successful Normal Parry vs Attacker
+collision.resetCooldown();
+const defender = new Cat({ id: 'p1', name: 'Mochi', breed: 'ginger_tabby', initialX: 370, initialFacing: 1 }, arena.config.ringSurfaceY);
+const normalAttacker = new Cat({ id: 'p2', name: 'Kuro', breed: 'black_tuxedo', initialX: 405, initialFacing: -1 }, arena.config.ringSurfaceY);
+normalAttacker.vx = -3.5;
+
+defender.startParry();
+const parryBump = collision.checkAndResolveCats(defender, normalAttacker);
+
+assert(parryBump !== null, 'Collision resolved during parry');
+assert(parryBump?.isParry === true, 'BumpEvent marked as isParry');
+assert(parryBump?.comicText === '⚡ PARRY! ⚡', 'Comic text is ⚡ PARRY! ⚡');
+assert(defender.state === 'IDLE', 'Defender successfully transitions out of PARRY on just-guard');
+assert(defender.vx === 0, 'Defender takes zero knockback');
+assert(normalAttacker.state === 'DAZED', 'Attacker is DAZED');
+assert(normalAttacker.dazeTimer === 24, 'Attacker stunned for 24 frames');
+assert(normalAttacker.vx > 4.0, `Attacker knocked back (${normalAttacker.vx.toFixed(2)} px/frame)`);
+
+// 15d: Successful Turbo Parry vs Charging Turbo Attack
+collision.resetCooldown();
+const turboDefender = new Cat({ id: 'p1', name: 'Mochi', breed: 'ginger_tabby', initialX: 370, initialFacing: 1 }, arena.config.ringSurfaceY);
+const turboCharger = new Cat({ id: 'p2', name: 'Kuro', breed: 'black_tuxedo', initialX: 410, initialFacing: -1 }, arena.config.ringSurfaceY);
+
+turboCharger.startTurboAttack(-1);
+turboDefender.startParry();
+
+const turboParryBump = collision.checkAndResolveCats(turboDefender, turboCharger);
+assert(turboParryBump !== null, 'Turbo attack collision detected during parry');
+assert(turboParryBump?.isParry === true, 'Marked as isParry');
+assert(turboParryBump?.comicText === '⚡ TURBO PARRY! ⚡', 'Comic text is ⚡ TURBO PARRY! ⚡');
+assert(turboDefender.vx === 0, 'Defender absorbs full momentum with zero knockback');
+assert(turboCharger.state === 'DAZED', 'Charging cat charge is broken into DAZED stun');
+assert(turboCharger.dazeTimer === 36, 'Turbo attacker severely punished with 36 frames of daze stun');
+assert(turboCharger.vx > 6.0, `Turbo attacker deflected backward with heavy recoil (${turboCharger.vx.toFixed(2)} px/frame)`);
+
+// -------------------------------------------------------------
+// TEST SUITE 16: CPU Controller AI Decision Tree
+// -------------------------------------------------------------
+console.log('\n--- 16. Testing CPU Controller AI Decision Tree ---');
+import { CPUController } from '../src/engine/CPUController';
+
+const cpuInput = new InputManager();
+const cpu = new CPUController(cpuInput);
+
+const cpuCat = new Cat({ id: 'p2', name: 'Kuro', breed: 'black_tuxedo', initialX: 600, initialFacing: -1 }, arena.config.ringSurfaceY);
+const humanCat = new Cat({ id: 'p1', name: 'Mochi', breed: 'ginger_tabby', initialX: 300, initialFacing: 1 }, arena.config.ringSurfaceY);
+
+// 16a: Easy CPU Wanders towards opponent / edge avoidance
+cpu.setDifficulty('easy');
+let easyMoved = false;
+for (let f = 0; f < 10; f++) {
+  cpu.update(cpuCat, humanCat, arena);
+  if (cpuInput.isDown('p2', 'left') || cpuInput.isDown('p2', 'right')) {
+    easyMoved = true;
+    break;
+  }
+}
+assert(easyMoved, 'Easy CPU generates movement towards combat area');
+
+// Edge avoidance is strictly deterministic
+cpuCat.x = arena.config.ringLeft + 20; // Near left platform edge
+cpu.update(cpuCat, humanCat, arena);
+assert(cpuInput.isDown('p2', 'right') === true, 'Easy CPU turns away from dangerous left ring edge');
+
+// 16b: Hard CPU Reactively Dodges Turbo Attack by jumping!
+cpu.setDifficulty('hard');
+humanCat.x = 450;
+cpuCat.x = 550; // In close range
+humanCat.startTurboAttack(1);
+
+cpu.update(cpuCat, humanCat, arena);
+assert(cpuInput.isDown('p2', 'jump') === true, 'Hard CPU detects incoming Turbo Attack and reactively jumps over charge');
+
+// 16c: Hard CPU Punishes Dazed Human with Turbo Attack
+let turboPunishTriggered = false;
+cpu.setOnTurboTrigger(() => {
+  turboPunishTriggered = true;
+});
+humanCat.endTurboAttack();
+humanCat.state = 'DAZED';
+humanCat.dazeTimer = 30;
+humanCat.x = 450;
+cpuCat.x = 550;
+cpuCat.turboCooldown = 0;
+
+cpu.update(cpuCat, humanCat, arena);
+assert(turboPunishTriggered, 'Hard CPU detects dazed player and instantly executes Turbo Attack punish');
+
+// 16d: Reset clears virtual inputs
+cpu.reset();
+assert(!cpuInput.isDown('p2', 'left') && !cpuInput.isDown('p2', 'jump'), 'CPU reset clears all virtual inputs');
+
+// -------------------------------------------------------------
+// TEST SUITE 17: Themed Arenas & Stage Selection
+// -------------------------------------------------------------
+console.log('\n--- 17. Testing Themed Arenas & Stage Selection ---');
+const testArena = new Arena(960, 540);
+assert(testArena.currentStage === 'dojo', 'Default stage is dojo');
+assert(testArena.stageSelection === 'random', 'Default stage selection is random');
+
+// Manual selection fixes stage
+testArena.setStageSelection('cyberpunk');
+assert(testArena.currentStage === 'cyberpunk', 'Current stage updated to cyberpunk');
+assert(testArena.prepareRoundStage() === 'cyberpunk', 'Fixed selection keeps cyberpunk stage across rounds');
+
+testArena.setStageSelection('thunder');
+assert(testArena.currentStage === 'thunder', 'Current stage updated to thunder');
+assert(testArena.getStageDisplayName().includes('THUNDER'), 'Display name reflects Midnight Thunder Shrine');
+
+// Random shuffle non-repeating
+testArena.setStageSelection('random');
+const s1 = testArena.prepareRoundStage();
+const s2 = testArena.prepareRoundStage();
+console.log(`Shuffled Stages: ${s1} -> ${s2}`);
+assert(Arena.ALL_STAGES.includes(s1), 'Round stage 1 is valid');
+assert(Arena.ALL_STAGES.includes(s2), 'Round stage 2 is valid');
+assert(s1 !== s2, 'Random stage shuffle does not repeat the same stage consecutively');
 
 console.log('\n🎉 ALL GAMEPLAY SIMULATION TESTS PASSED!\n');

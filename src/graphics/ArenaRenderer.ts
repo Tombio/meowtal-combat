@@ -1,18 +1,69 @@
-import { Arena } from '../entities/Arena';
+import { Arena, ArenaStage } from '../entities/Arena';
 
 export class ArenaRenderer {
   private arena: Arena;
   private animTimer: number = 0;
+  public lightningFlash: number = 0;
+  private rainDrops: Array<{ x: number; y: number; speed: number; len: number }> = [];
 
   constructor(arena: Arena) {
     this.arena = arena;
+    // Pre-populate rain drops for Thunder Shrine
+    for (let i = 0; i < 60; i++) {
+      this.rainDrops.push({
+        x: Math.random() * 960,
+        y: Math.random() * 540,
+        speed: 12 + Math.random() * 8,
+        len: 14 + Math.random() * 10,
+      });
+    }
+  }
+
+  public triggerLightning(intensity = 0.85): void {
+    this.lightningFlash = Math.max(this.lightningFlash, intensity);
   }
 
   public draw(ctx: CanvasRenderingContext2D): void {
     this.animTimer++;
     const cfg = this.arena.config;
+    const stage = this.arena.currentStage;
 
-    // 1. Retro 90s Gradient Background (Shrine / Arcade Night Scene)
+    // 1. Stage Background
+    if (stage === 'cyberpunk') {
+      this.drawCyberpunkBackground(ctx, cfg);
+    } else if (stage === 'thunder') {
+      this.drawThunderBackground(ctx, cfg);
+    } else {
+      this.drawDojoBackground(ctx, cfg);
+    }
+
+    // 2. Pit Below the Platform (Dark abyss / fall zone)
+    ctx.fillStyle = stage === 'cyberpunk' ? '#04020a' : '#0d0417';
+    ctx.fillRect(0, cfg.ringSurfaceY + cfg.ringThickness, cfg.canvasWidth, cfg.canvasHeight - (cfg.ringSurfaceY + cfg.ringThickness));
+
+    // Bottom warning striping in the pit
+    this.drawHazardFloor(ctx, cfg);
+
+    // 3. Elevated Dohyo Platform Body
+    this.drawPlatform(ctx, cfg, stage);
+
+    // 4. Rain weather overlay if Thunder stage
+    if (stage === 'thunder') {
+      this.drawRain(ctx, cfg);
+    }
+
+    // 5. Lightning flash overlay
+    if (this.lightningFlash > 0.02) {
+      ctx.save();
+      ctx.fillStyle = `rgba(220, 240, 255, ${this.lightningFlash})`;
+      ctx.fillRect(0, 0, cfg.canvasWidth, cfg.canvasHeight);
+      ctx.restore();
+      this.lightningFlash *= 0.82; // fast lightning fade
+    }
+  }
+
+  private drawDojoBackground(ctx: CanvasRenderingContext2D, cfg: any): void {
+    // Retro 90s Sunset Gradient
     const bgGrad = ctx.createLinearGradient(0, 0, 0, cfg.canvasHeight);
     bgGrad.addColorStop(0, '#120726');
     bgGrad.addColorStop(0.4, '#2d144e');
@@ -21,7 +72,7 @@ export class ArenaRenderer {
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, cfg.canvasWidth, cfg.canvasHeight);
 
-    // 2. Distant Moon & Stars
+    // Distant Moon
     ctx.fillStyle = '#fff9d6';
     ctx.shadowColor = '#ffeaa7';
     ctx.shadowBlur = 25;
@@ -30,96 +81,262 @@ export class ArenaRenderer {
     ctx.fill();
     ctx.shadowBlur = 0;
 
-    // 2. Distant Majestic Mount Fuji (Soft atmospheric silhouette)
+    // Distant Majestic Mount Fuji
     this.drawMountFuji(ctx, 520, cfg.ringSurfaceY - 20);
 
-    // 3. Traditional Multi-Tier Japanese Pagodas (Fainter, soft horizon silhouettes)
-    // Left tall 5-tier pagoda silhouetted gently against the moon
+    // Pagodas & Pines
     this.drawPagoda(ctx, 115, cfg.ringSurfaceY - 18, 1.25, 5, '#2e144a');
-
-    // Distant center-left 3-tier pagoda (faintest, deepest in the background)
     this.drawPagoda(ctx, 330, cfg.ringSurfaceY - 18, 0.95, 3, '#3a1958');
-
-    // Right 4-tier pagoda framing the arena
     this.drawPagoda(ctx, 845, cfg.ringSurfaceY - 18, 1.15, 4, '#2e144a');
 
-    // Traditional Japanese Pine Trees (Matsu) along the horizon (softened tones)
     this.drawPineTree(ctx, 55, cfg.ringSurfaceY - 18, 1.2, '#28113e');
     this.drawPineTree(ctx, 175, cfg.ringSurfaceY - 18, 0.9, '#2f1448');
-    this.drawPineTree(ctx, 385, cfg.ringSurfaceY - 18, 0.85, '#381854'); // distant pine
+    this.drawPineTree(ctx, 385, cfg.ringSurfaceY - 18, 0.85, '#381854');
     this.drawPineTree(ctx, 785, cfg.ringSurfaceY - 18, 1.1, '#2c1244');
     this.drawPineTree(ctx, 905, cfg.ringSurfaceY - 18, 1.0, '#28113e');
 
-    // 3b. Atmospheric Mountain Mist / Evening Haze along the horizon (softens lower skyline)
-    const horizonMist = ctx.createLinearGradient(0, cfg.ringSurfaceY - 110, 0, cfg.ringSurfaceY - 15);
-    horizonMist.addColorStop(0, 'rgba(73, 24, 90, 0)');
-    horizonMist.addColorStop(0.5, 'rgba(73, 24, 90, 0.22)');
-    horizonMist.addColorStop(1, 'rgba(73, 24, 90, 0.50)');
-    ctx.fillStyle = horizonMist;
-    ctx.fillRect(0, cfg.ringSurfaceY - 110, cfg.canvasWidth, 95);
-
-    // 4. Hanging Festival Lanterns (Glowing red & gold)
+    // Hanging Festival Lanterns
     this.drawLantern(ctx, 80, 35, '#ff2a55');
     this.drawLantern(ctx, 240, 45, '#ffaa00');
     this.drawLantern(ctx, cfg.canvasWidth - 240, 45, '#ffaa00');
     this.drawLantern(ctx, cfg.canvasWidth - 80, 35, '#ff2a55');
+  }
 
-    // 5. Pit Below the Platform (Dark abyss / fall zone)
-    ctx.fillStyle = '#0d0417';
-    ctx.fillRect(0, cfg.ringSurfaceY + cfg.ringThickness, cfg.canvasWidth, cfg.canvasHeight - (cfg.ringSurfaceY + cfg.ringThickness));
+  private drawCyberpunkBackground(ctx: CanvasRenderingContext2D, cfg: any): void {
+    // Deep Synthwave Cyber Night
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, cfg.canvasHeight);
+    bgGrad.addColorStop(0, '#04020a');
+    bgGrad.addColorStop(0.3, '#0b061c');
+    bgGrad.addColorStop(0.7, '#1b0933');
+    bgGrad.addColorStop(1, '#051026');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, cfg.canvasWidth, cfg.canvasHeight);
 
-    // Bottom warning striping in the pit
-    this.drawHazardFloor(ctx, cfg);
+    // Cyberpunk Skyscrapers Skyline
+    const buildings = [
+      { x: 30, w: 90, h: 260, color: '#0d0722' },
+      { x: 130, w: 80, h: 320, color: '#13092e' },
+      { x: 220, w: 110, h: 230, color: '#0b051f' },
+      { x: 640, w: 100, h: 290, color: '#12082b' },
+      { x: 750, w: 85, h: 340, color: '#150a33' },
+      { x: 845, w: 95, h: 240, color: '#0c0620' },
+    ];
 
-    // 6. Elevated Dohyo Platform Body (Earthen / Wood Base)
+    buildings.forEach((b) => {
+      const topY = cfg.ringSurfaceY - b.h;
+      ctx.fillStyle = b.color;
+      ctx.fillRect(b.x, topY, b.w, b.h);
+
+      // Window grid lights
+      ctx.fillStyle = 'rgba(0, 240, 255, 0.4)';
+      for (let wy = topY + 20; wy < cfg.ringSurfaceY - 40; wy += 18) {
+        for (let wx = b.x + 12; wx < b.x + b.w - 12; wx += 16) {
+          if ((wx + wy * 3) % 7 === 0) {
+            ctx.fillStyle = (wx + wy) % 5 === 0 ? 'rgba(255, 0, 128, 0.65)' : 'rgba(0, 240, 255, 0.55)';
+            ctx.fillRect(wx, wy, 8, 10);
+          }
+        }
+      }
+    });
+
+    // Giant Glowing Holographic Billboard: 猫 (NEKO / CAT)
+    ctx.save();
+    ctx.font = 'bold 54px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ff007f';
+    ctx.shadowColor = '#ff00aa';
+    ctx.shadowBlur = 24;
+    ctx.fillText('猫', 170, cfg.ringSurfaceY - 210);
+
+    // Billboard 2: 勝利 (VICTORY)
+    ctx.fillStyle = '#00f0ff';
+    ctx.shadowColor = '#00e5ff';
+    ctx.shadowBlur = 24;
+    ctx.fillText('勝', 790, cfg.ringSurfaceY - 220);
+
+    // Horizontal Neon Marquee Banner
+    ctx.font = '10px "Press Start 2P", monospace';
+    ctx.fillStyle = '#ffe600';
+    ctx.shadowColor = '#ffaa00';
+    ctx.shadowBlur = 10;
+    ctx.fillText('NEO-DOHYO 2099', 480, 65);
+    ctx.restore();
+
+    // Floating Holographic Koi Fish
+    const koiX = 480 + Math.sin(this.animTimer * 0.02) * 140;
+    const koiY = 120 + Math.cos(this.animTimer * 0.03) * 20;
+    ctx.save();
+    ctx.translate(koiX, koiY);
+    ctx.scale(Math.cos(this.animTimer * 0.02) >= 0 ? 1 : -1, 1);
+    ctx.fillStyle = 'rgba(0, 240, 255, 0.6)';
+    ctx.shadowColor = '#00f0ff';
+    ctx.shadowBlur = 14;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 28, 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Tail
+    ctx.beginPath();
+    ctx.moveTo(-24, 0);
+    ctx.lineTo(-40, -12);
+    ctx.lineTo(-40, 12);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  private drawThunderBackground(ctx: CanvasRenderingContext2D, cfg: any): void {
+    // Stormy Dark Indigo Sky
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, cfg.canvasHeight);
+    bgGrad.addColorStop(0, '#06030e');
+    bgGrad.addColorStop(0.4, '#100a26');
+    bgGrad.addColorStop(0.8, '#180d38');
+    bgGrad.addColorStop(1, '#0c071d');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, cfg.canvasWidth, cfg.canvasHeight);
+
+    // Dark brooding thunderclouds
+    ctx.fillStyle = 'rgba(25, 14, 50, 0.6)';
+    for (let i = 0; i < 5; i++) {
+      const cx = (i * 220 + this.animTimer * 0.2) % (cfg.canvasWidth + 200) - 100;
+      ctx.beginPath();
+      ctx.arc(cx, 60, 90, 0, Math.PI * 2);
+      ctx.arc(cx + 60, 45, 110, 0, Math.PI * 2);
+      ctx.arc(cx + 120, 60, 85, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Shadowy Mountain Silhouette
+    this.drawMountFuji(ctx, 480, cfg.ringSurfaceY - 15, '#120a24');
+
+    // Distant dark Torii gate on cliff
+    ctx.fillStyle = '#0a0514';
+    ctx.fillRect(140, cfg.ringSurfaceY - 95, 12, 80);
+    ctx.fillRect(200, cfg.ringSurfaceY - 95, 12, 80);
+    ctx.fillRect(125, cfg.ringSurfaceY - 100, 102, 12);
+    ctx.fillRect(135, cfg.ringSurfaceY - 84, 82, 8);
+
+    // Weathered Lanterns
+    this.drawLantern(ctx, 100, 40, '#ff4400');
+    this.drawLantern(ctx, cfg.canvasWidth - 100, 40, '#ff4400');
+  }
+
+  private drawRain(ctx: CanvasRenderingContext2D, cfg: any): void {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(180, 220, 255, 0.45)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+
+    for (const drop of this.rainDrops) {
+      drop.x -= 2; // diagonal wind
+      drop.y += drop.speed;
+      if (drop.y > cfg.canvasHeight) {
+        drop.y = -10;
+        drop.x = Math.random() * (cfg.canvasWidth + 100);
+      }
+      ctx.moveTo(drop.x, drop.y);
+      ctx.lineTo(drop.x - 4, drop.y + drop.len);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  private drawPlatform(ctx: CanvasRenderingContext2D, cfg: any, stage: ArenaStage): void {
     const platX = cfg.ringLeft;
     const platY = cfg.ringSurfaceY;
     const platW = cfg.ringRight - cfg.ringLeft;
     const platH = cfg.ringThickness;
 
-    // Wooden base bevel
-    ctx.fillStyle = '#6d4c41';
-    ctx.fillRect(platX - 8, platY, platW + 16, platH);
+    if (stage === 'cyberpunk') {
+      // Sleek carbon cyber platform
+      ctx.fillStyle = '#161226';
+      ctx.fillRect(platX - 8, platY, platW + 16, platH);
 
-    // Dark wood grain planks
-    ctx.fillStyle = '#5d4037';
-    for (let x = platX; x < platX + platW; x += 36) {
-      ctx.fillRect(x, platY + 12, 2, platH - 12);
+      // Neon trim
+      ctx.strokeStyle = '#00f0ff';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(platX - 8, platY, platW + 16, platH);
+
+      // Dark cyber surface
+      const cyberGrad = ctx.createLinearGradient(0, platY, 0, platY + 14);
+      cyberGrad.addColorStop(0, '#261b40');
+      cyberGrad.addColorStop(1, '#160d29');
+      ctx.fillStyle = cyberGrad;
+      ctx.fillRect(platX, platY, platW, 14);
+
+      // Cyan grid lines
+      ctx.fillStyle = 'rgba(0, 240, 255, 0.3)';
+      for (let x = platX + 4; x < platX + platW; x += 16) {
+        ctx.fillRect(x, platY, 1, 14);
+      }
+
+      // Neon glowing Shikiri-sen lines
+      const centerX = cfg.canvasWidth / 2;
+      ctx.fillStyle = '#ff007f';
+      ctx.shadowColor = '#ff00aa';
+      ctx.shadowBlur = 10;
+      ctx.fillRect(centerX - 48, platY + 4, 18, 5);
+      ctx.fillStyle = '#00f0ff';
+      ctx.shadowColor = '#00e5ff';
+      ctx.fillRect(centerX + 30, platY + 4, 18, 5);
+      ctx.shadowBlur = 0;
+    } else if (stage === 'thunder') {
+      // Wet dark slate stone base
+      ctx.fillStyle = '#2c2538';
+      ctx.fillRect(platX - 8, platY, platW + 16, platH);
+
+      ctx.fillStyle = '#1c1724';
+      for (let x = platX; x < platX + platW; x += 36) {
+        ctx.fillRect(x, platY + 12, 2, platH - 12);
+      }
+
+      // Wet tatami surface
+      const wetGrad = ctx.createLinearGradient(0, platY, 0, platY + 14);
+      wetGrad.addColorStop(0, '#9a8a68');
+      wetGrad.addColorStop(1, '#726345');
+      ctx.fillStyle = wetGrad;
+      ctx.fillRect(platX, platY, platW, 14);
+
+      this.drawShimenawa(ctx, platX, platY, platW);
+
+      const centerX = cfg.canvasWidth / 2;
+      ctx.fillStyle = '#e0e0e0';
+      ctx.fillRect(centerX - 48, platY + 4, 18, 5);
+      ctx.fillRect(centerX + 30, platY + 4, 18, 5);
+    } else {
+      // Classic Mount Fuji Dojo platform
+      ctx.fillStyle = '#6d4c41';
+      ctx.fillRect(platX - 8, platY, platW + 16, platH);
+
+      ctx.fillStyle = '#5d4037';
+      for (let x = platX; x < platX + platW; x += 36) {
+        ctx.fillRect(x, platY + 12, 2, platH - 12);
+      }
+
+      ctx.fillStyle = '#3e2723';
+      ctx.fillRect(platX - 10, platY + platH - 8, platW + 20, 8);
+
+      const tatamiGrad = ctx.createLinearGradient(0, platY, 0, platY + 14);
+      tatamiGrad.addColorStop(0, '#e4d39c');
+      tatamiGrad.addColorStop(1, '#c8b476');
+      ctx.fillStyle = tatamiGrad;
+      ctx.fillRect(platX, platY, platW, 14);
+
+      ctx.fillStyle = 'rgba(160, 140, 80, 0.4)';
+      for (let x = platX + 4; x < platX + platW; x += 12) {
+        ctx.fillRect(x, platY, 1, 14);
+      }
+
+      this.drawShimenawa(ctx, platX, platY, platW);
+
+      const centerX = cfg.canvasWidth / 2;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(centerX - 48, platY + 4, 18, 5);
+      ctx.fillRect(centerX + 30, platY + 4, 18, 5);
     }
 
-    // Platform bottom trim
-    ctx.fillStyle = '#3e2723';
-    ctx.fillRect(platX - 10, platY + platH - 8, platW + 20, 8);
-
-    // 7. Dohyo Tatami Surface
-    const tatamiGrad = ctx.createLinearGradient(0, platY, 0, platY + 14);
-    tatamiGrad.addColorStop(0, '#e4d39c');
-    tatamiGrad.addColorStop(1, '#c8b476');
-    ctx.fillStyle = tatamiGrad;
-    ctx.fillRect(platX, platY, platW, 14);
-
-    // Tatami woven pattern lines
-    ctx.fillStyle = 'rgba(160, 140, 80, 0.4)';
-    for (let x = platX + 4; x < platX + platW; x += 12) {
-      ctx.fillRect(x, platY, 1, 14);
-    }
-
-    // 8. Sacred Rope Boundary (Shimenawa) along top edge
-    this.drawShimenawa(ctx, platX, platY, platW);
-
-    // 9. Sumo Center Starting Lines (Shikiri-sen)
-    const centerX = cfg.canvasWidth / 2;
-    ctx.fillStyle = '#ffffff';
-    // White starting line 1 (P1 side)
-    ctx.fillRect(centerX - 48, platY + 4, 18, 5);
-    // White starting line 2 (P2 side)
-    ctx.fillRect(centerX + 30, platY + 4, 18, 5);
-
-    // 10. Sacred Salt Piles at Left & Right Edges
+    // Sacred Salt Piles & Edge Warnings
     this.drawSaltPile(ctx, platX + 16, platY);
     this.drawSaltPile(ctx, cfg.ringRight - 16, platY);
-
-    // 11. Edge Drop-off Warning Glows
     this.drawEdgeWarnings(ctx, cfg);
   }
 
@@ -228,10 +445,10 @@ export class ArenaRenderer {
   /**
    * Distant Majestic Mount Fuji with soft snowy peak (faint atmospheric mountain air)
    */
-  private drawMountFuji(ctx: CanvasRenderingContext2D, centerX: number, baseY: number): void {
+  private drawMountFuji(ctx: CanvasRenderingContext2D, centerX: number, baseY: number, color: string = 'rgba(46, 18, 72, 0.38)'): void {
     ctx.save();
     // Soft iconic concave slopes of Mt. Fuji receding peacefully in the distance
-    ctx.fillStyle = 'rgba(46, 18, 72, 0.38)';
+    ctx.fillStyle = color;
     ctx.beginPath();
     ctx.moveTo(centerX - 280, baseY);
     ctx.quadraticCurveTo(centerX - 130, baseY - 35, centerX - 48, baseY - 145);

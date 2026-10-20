@@ -1,4 +1,4 @@
-import { InputManager, PlayerId } from '../engine/InputManager';
+import { InputManager, PlayerId, ActionType } from '../engine/InputManager';
 
 export class TouchController {
   private input: InputManager;
@@ -18,6 +18,7 @@ export class TouchController {
     this.bindButton('touch-btn-left', 'left');
     this.bindButton('touch-btn-right', 'right');
     this.bindButton('touch-btn-jump', 'jump');
+    this.bindButton('touch-btn-parry', 'parry');
 
     // Auto-show on mobile touch devices (phones, tablets, standalone PWAs)
     const isMobileTouchDevice =
@@ -62,9 +63,11 @@ export class TouchController {
       this.input.setVirtualAction('p1', 'left', false);
       this.input.setVirtualAction('p1', 'right', false);
       this.input.setVirtualAction('p1', 'jump', false);
+      this.input.setVirtualAction('p1', 'parry', false);
       this.input.setVirtualAction('p2', 'left', false);
       this.input.setVirtualAction('p2', 'right', false);
       this.input.setVirtualAction('p2', 'jump', false);
+      this.input.setVirtualAction('p2', 'parry', false);
     }
   }
 
@@ -72,7 +75,7 @@ export class TouchController {
     return this.isVisible;
   }
 
-  private bindButton(elementId: string, action: 'left' | 'right' | 'jump'): void {
+  private bindButton(elementId: string, action: ActionType): void {
     const btn = document.getElementById(elementId);
     if (!btn) return;
 
