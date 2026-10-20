@@ -244,26 +244,38 @@ class CatSumoGame {
           this.p2.state = state.p2.state as any;
           this.p2.facing = state.p2.facing as any;
         } else {
-          // Normal locomotion: Soft position reconciliation
-          const dxP2 = state.p2.x - this.p2.x;
-          const dyP2 = state.p2.y - this.p2.y;
-
-          if (Math.abs(dxP2) > 35 || Math.abs(dyP2) > 40) {
-            // Major desync: hard snap to Host
+          // If Guest was in a terminal/defeat state (e.g. RING_OUT from losing previous round),
+          // but Host has reset or recovered to IDLE/WADDLE, immediately exit defeat state!
+          if (this.p2.state === 'RING_OUT' || this.p2.state === 'DAZED' || this.p2.state === 'CELEBRATING') {
+            this.p2.state = state.p2.state as any;
             this.p2.x = state.p2.x;
             this.p2.y = state.p2.y;
             this.p2.vx = state.p2.vx;
             this.p2.vy = state.p2.vy;
-          } else {
-            // Minor drift: smoothly nudge towards Host without interrupting local jump or walk
-            this.p2.x += dxP2 * 0.25;
-            if (this.p2.isGrounded && state.p2.vy === 0) {
-              this.p2.y = state.p2.y;
-            }
-          }
-
-          if (this.p2.state !== 'DAZED' && this.p2.state !== 'RING_OUT') {
             this.p2.facing = state.p2.facing as any;
+            this.p2.isGrounded = true;
+          } else {
+            // Normal locomotion: Soft position reconciliation
+            const dxP2 = state.p2.x - this.p2.x;
+            const dyP2 = state.p2.y - this.p2.y;
+
+            if (Math.abs(dxP2) > 35 || Math.abs(dyP2) > 40) {
+              // Major desync: hard snap to Host
+              this.p2.x = state.p2.x;
+              this.p2.y = state.p2.y;
+              this.p2.vx = state.p2.vx;
+              this.p2.vy = state.p2.vy;
+            } else {
+              // Minor drift: smoothly nudge towards Host without interrupting local jump or walk
+              this.p2.x += dxP2 * 0.25;
+              if (this.p2.isGrounded && state.p2.vy === 0) {
+                this.p2.y = state.p2.y;
+              }
+            }
+
+            if (!this.input.isDown('p2', 'left') && !this.input.isDown('p2', 'right')) {
+              this.p2.facing = state.p2.facing as any;
+            }
           }
         }
 
@@ -283,6 +295,7 @@ class CatSumoGame {
           this.hud.currentRound = state.currentRound;
           const trackTitle = this.sound.setRoundTrack(state.currentRound);
           this.hud.showTrackBanner(trackTitle);
+          this.resetCatsForRound();
         }
 
         if (this.hud.matchPhase !== state.matchPhase) {
@@ -290,6 +303,7 @@ class CatSumoGame {
           if (state.matchPhase === 'ROUND_INTRO') {
             this.sound.playTaikoDon();
             this.hud.startRoundIntro();
+            this.resetCatsForRound();
           } else if (state.matchPhase === 'ROUND_OVER') {
             this.sound.playRingOut();
             this.effects.triggerScreenShake(8);

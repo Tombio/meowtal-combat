@@ -297,4 +297,37 @@ p2_pred.applyKnockback(hostBonkVx, hostBonkVy, 22);
 assert(p2_pred.state === 'DAZED', 'Guest cat accepts authoritative DAZED state from host');
 assert(p2_pred.vx === hostBonkVx, 'Guest cat accepts authoritative knockback velocity');
 
+// Test 12e: Defeat & Round Reset Recovery (no lingering RING_OUT spinning or falling through floor)
+p2_pred.state = 'RING_OUT';
+p2_pred.isGrounded = false;
+p2_pred.x = 800; // in pit
+p2_pred.y = 450;
+
+// Host sends new round state where p2 is reset to IDLE on the Dohyo
+const resetSnapshot = {
+  p2: { x: 604, y: arena.config.ringSurfaceY - p2_pred.height, vx: 0, vy: 0, state: 'IDLE', facing: -1 }
+};
+
+if (resetSnapshot.p2.state === 'DAZED' || resetSnapshot.p2.state === 'RING_OUT' || resetSnapshot.p2.state === 'CELEBRATING') {
+  p2_pred.state = resetSnapshot.p2.state as any;
+} else if (p2_pred.state === 'RING_OUT' || p2_pred.state === 'DAZED' || p2_pred.state === 'CELEBRATING') {
+  p2_pred.state = resetSnapshot.p2.state as any;
+  p2_pred.x = resetSnapshot.p2.x;
+  p2_pred.y = resetSnapshot.p2.y;
+  p2_pred.vx = resetSnapshot.p2.vx;
+  p2_pred.vy = resetSnapshot.p2.vy;
+  p2_pred.facing = resetSnapshot.p2.facing as any;
+  p2_pred.isGrounded = true;
+}
+
+assert(p2_pred.state === 'IDLE', 'Guest cat exits RING_OUT and becomes IDLE after defeat and round reset');
+assert(p2_pred.isGrounded, 'Guest cat is grounded on Dohyo');
+assert(p2_pred.x === 604, 'Guest cat position is restored to Dohyo platform');
+
+// Jump should now work cleanly and not drop through the floor
+p2_pred.jump();
+assert(!p2_pred.isGrounded, 'Guest cat jumps cleanly into air');
+assert(p2_pred.vy === -12.4, 'Guest cat upward jump velocity is active');
+assert(p2_pred.state === 'JUMP_RISE', 'Guest cat enters JUMP_RISE state (not stuck in RING_OUT 360 spin)');
+
 console.log('\n🎉 ALL GAMEPLAY SIMULATION TESTS PASSED!\n');
