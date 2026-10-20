@@ -1,3 +1,14 @@
 node_modules
 dist
 .DS_Store
+
+# Environment & Secret files
+.env
+.env.*
+*.pem
+*.key
+*.cert
+*.p12
+*.crt
+credentials.json
+
