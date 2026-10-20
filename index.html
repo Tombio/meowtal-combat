@@ -2,8 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>MEOWTAL COMBAT - 2-Player 90s Arcade</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <meta name="theme-color" content="#12091f" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Meowtal" />
+  <link rel="icon" type="image/svg+xml" href="./icons/icon.svg" />
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
@@ -16,6 +24,15 @@
       padding: 0;
     }
 
+    html, body {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
       background: radial-gradient(circle at center, #261738 0%, #0c0714 100%);
       color: #fff;
@@ -25,10 +42,8 @@
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
-      padding: 10px 4px 20px;
+      padding: 6px 0 16px;
       overflow-y: auto;
-      overflow-x: hidden;
-      box-sizing: border-box;
     }
 
     #cabinet-container {
@@ -36,16 +51,16 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      border: 5px solid #4a2869;
-      border-radius: 12px;
+      border: 4px solid #4a2869;
+      border-radius: 10px;
       background: #12091f;
       box-shadow: 
-        0 0 30px rgba(255, 105, 180, 0.3),
-        0 0 60px rgba(78, 205, 196, 0.2),
-        inset 0 0 20px rgba(0, 0, 0, 0.8);
-      padding: 8px;
-      max-width: 98vw;
-      margin: auto 0;
+        0 0 20px rgba(255, 105, 180, 0.3),
+        0 0 40px rgba(78, 205, 196, 0.2);
+      padding: 6px;
+      width: 100%;
+      max-width: 980px;
+      margin: 0 auto;
       box-sizing: border-box;
     }
 
@@ -419,13 +434,98 @@
       letter-spacing: 1px;
     }
 
-    /* Responsive Mobile Tweaks */
-    @media (max-width: 900px) {
+    /* Fullscreen & Mobile Viewport Enhancements */
+    #cabinet-container:fullscreen,
+    #cabinet-container:-webkit-full-screen,
+    #cabinet-container.mobile-fullscreen-active {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      max-width: 100vw !important;
+      max-height: 100vh !important;
+      margin: 0 !important;
+      padding: max(2px, env(safe-area-inset-top)) max(6px, env(safe-area-inset-right)) max(4px, env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left)) !important;
+      border: none !important;
+      border-radius: 0 !important;
+      background: #000 !important;
+      z-index: 99999 !important;
+      box-shadow: none !important;
+      justify-content: space-between !important;
+    }
+
+    body.fullscreen-locked {
+      overflow: hidden !important;
+      position: fixed;
+      width: 100%;
+      height: 100%;
+    }
+
+    #cabinet-container:fullscreen #screen-wrapper,
+    #cabinet-container:-webkit-full-screen #screen-wrapper,
+    #cabinet-container.mobile-fullscreen-active #screen-wrapper {
+      width: min(100vw, calc((100vh - 44px) * 16 / 9)) !important;
+      height: auto !important;
+      max-height: calc(100vh - 44px) !important;
+      flex: 1;
+      margin: 0 auto;
+    }
+
+    #cabinet-container:fullscreen #marquee,
+    #cabinet-container:-webkit-full-screen #marquee,
+    #cabinet-container.mobile-fullscreen-active #marquee {
+      display: none !important;
+    }
+
+    /* Touch Controls in Fullscreen or Mobile Landscape */
+    #cabinet-container:fullscreen #touch-controls-container,
+    #cabinet-container:-webkit-full-screen #touch-controls-container,
+    #cabinet-container.mobile-fullscreen-active #touch-controls-container,
+    @media (orientation: landscape) and (max-height: 580px) {
+      #touch-controls-container {
+        position: absolute;
+        bottom: 42px;
+        left: 0;
+        width: 100%;
+        padding: 0 max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
+        pointer-events: none;
+        z-index: 150;
+        margin-top: 0;
+      }
+      .touch-arcade-btn {
+        pointer-events: auto;
+        opacity: 0.88;
+        backdrop-filter: blur(4px);
+        width: 58px;
+        height: 58px;
+        font-size: 16px;
+      }
+      .touch-arcade-btn.jump-btn {
+        width: 72px;
+        height: 72px;
+      }
+    }
+
+    /* Responsive Mobile Tweaks: Keep all Buttons, CRT, and GFX Controls Accessible */
+    #toolbar-btn-group {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+    }
+
+    @media (max-width: 900px), (orientation: landscape) and (max-height: 580px) {
       #cabinet-container {
         padding: 4px;
         border-width: 3px;
-        width: 100vw;
-        max-width: 100vw;
+        width: 100%;
+        max-width: 100%;
+      }
+      #marquee {
+        padding: 4px 8px;
+        margin-bottom: 4px;
       }
       #marquee h1 {
         font-size: 11px;
@@ -434,22 +534,71 @@
         font-size: 7px;
       }
       #control-bar {
-        flex-wrap: wrap;
+        padding: 4px;
+        margin-top: 2px;
         justify-content: center;
-        font-size: 8px;
+        z-index: 200;
+        background: rgba(28, 14, 45, 0.95);
+        backdrop-filter: blur(6px);
+      }
+      .player-indicator {
+        display: none; /* Hide verbose legend on mobile so all control buttons fit */
       }
       .arcade-btn {
-        font-size: 7px;
-        padding: 4px 6px;
+        font-size: 7.5px;
+        padding: 5px 6px;
       }
       .touch-arcade-btn {
-        width: 58px;
-        height: 58px;
+        width: 56px;
+        height: 56px;
         font-size: 16px;
       }
       .touch-arcade-btn.jump-btn {
-        width: 74px;
-        height: 74px;
+        width: 70px;
+        height: 70px;
+      }
+    }
+
+    /* Clean 4x2 Arcade Button Grid on Phones in Portrait */
+    @media (max-width: 500px) and (orientation: portrait) {
+      #cabinet-container {
+        width: 100%;
+        max-width: 100%;
+        padding: 2px;
+        border-width: 2px;
+      }
+      #screen-wrapper {
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+      #marquee h1 {
+        font-size: 8px;
+        letter-spacing: 0.5px;
+      }
+      #btn-online-marquee {
+        display: none;
+      }
+      #toolbar-btn-group {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 3px;
+        width: 100%;
+      }
+      #toolbar-btn-group .arcade-btn {
+        width: 100%;
+        text-align: center;
+        padding: 6px 1px;
+        font-size: 6.2px;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        overflow: hidden;
+      }
+    }
+        padding: 6px 1px;
+        font-size: 6px;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        overflow: hidden;
       }
     }
   </style>
@@ -556,7 +705,7 @@
         <span>|</span>
         <span class="badge-p2">P2 (Black Kuro): [Arrows]</span>
       </div>
-      <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+      <div id="toolbar-btn-group">
         <button id="btn-online" class="arcade-btn" style="background: linear-gradient(180deg, #00e5ff, #0091ea); border-color: #80d8ff;">🌐 ONLINE</button>
         <button id="btn-touch" class="arcade-btn secondary">🎮 TOUCH</button>
         <button id="btn-keys" class="arcade-btn secondary">KEYS</button>

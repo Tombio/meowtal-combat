@@ -2,6 +2,7 @@
 
 [![Deploy to GitHub Pages](https://github.com/Tombio/meowtal-combat/actions/workflows/deploy.yml/badge.svg)](https://github.com/Tombio/meowtal-combat/actions/workflows/deploy.yml)
 [![Play Live](https://img.shields.io/badge/🎮%20Play%20Live-GitHub%20Pages-ff007f?style=for-the-badge)](https://tombio.github.io/meowtal-combat/)
+[![PWA Ready](https://img.shields.io/badge/PWA-Installable%20%26%20Offline-5A0FC8?style=flat-square&logo=pwa)](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-5.4-646CFF?style=flat-square&logo=vite)](https://vitejs.dev/)
 [![WebRTC](https://img.shields.io/badge/WebRTC-P2P%20Multiplayer-333333?style=flat-square&logo=webrtc)](https://webrtc.org/)
@@ -16,15 +17,23 @@
 
 ## 📸 Screenshots
 
-### Gameplay Battle
-![MEOWTAL COMBAT Gameplay](screenshots/gameplay.png)
+| Desktop Gameplay | Arcade Cabinet & Title |
+| :---: | :---: |
+| ![MEOWTAL COMBAT Gameplay](screenshots/gameplay.png) | ![Arcade Cabinet Title](screenshots/title.png) |
 
-### Arcade Cabinet & Title Screen
-![Arcade Cabinet Title](screenshots/title.png)
+| Mobile Landscape & Touch Controls | Mobile Portrait Layout |
+| :---: | :---: |
+| ![Mobile Landscape](screenshots/mobile-landscape.png) | ![Mobile Portrait](screenshots/mobile-portrait.png) |
 
 ---
 
 ## ⚡ Features
+
+### 📱 Progressive Web App (PWA) & Mobile Fullscreen
+- **Installable PWA**: Installable directly on Android, Chrome, and iOS (Safari "Add to Home Screen") as a standalone app.
+- **Offline Capable**: Pre-caches game assets via a custom Service Worker (`sw.js`) with cache-first and stale-while-revalidate strategies.
+- **Fullscreen Cabinet Mode**: Fullscreen toggle (`⛶ FULL`) expands the entire arcade experience edge-to-edge (with iOS Safari emulated fallback and landscape orientation lock) while keeping on-screen touch buttons and all toolbar controls (**ONLINE**, **TOUCH**, **KEYS**, **CRT**, **SFX**, **BGM**, **TRACK**) visible and accessible.
+- **Responsive Touch Layout**: Adaptive 4x2 control button grid for portrait orientation and non-occluding corner touch D-pad in landscape.
 
 ### 🥋 Chonky Sumo Physics & Combat
 - **Height-Advantage Pounce Mechanic**: Collisions scale dynamically with altitude difference. Higher cats dropping onto opponents trigger screen shake, comic popups (`CLASH!`, `BONK!`, `POUNCE!`), hit-stop freeze frames, and massive horizontal knockback!

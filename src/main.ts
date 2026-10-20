@@ -196,14 +196,55 @@ class CatSumoGame {
       this.hud.showTrackBanner(title);
     });
 
-    btnFullscreen?.addEventListener('click', () => {
-      const container = document.getElementById('screen-wrapper');
-      if (!document.fullscreenElement) {
-        container?.requestFullscreen?.();
-      } else {
-        document.exitFullscreen?.();
+    const cabinet = document.getElementById('cabinet-container');
+    const updateFsBtnText = () => {
+      const isFs = !!document.fullscreenElement ||
+                   !!(document as any).webkitFullscreenElement ||
+                   cabinet?.classList.contains('mobile-fullscreen-active');
+      if (btnFullscreen) {
+        btnFullscreen.textContent = isFs ? '⛶ EXIT' : '⛶ FULL';
       }
-    });
+    };
+
+    const toggleFullscreen = () => {
+      const isFs = !!document.fullscreenElement || !!(document as any).webkitFullscreenElement;
+      const isEmulated = cabinet?.classList.contains('mobile-fullscreen-active');
+
+      if (isFs) {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        } else if ((document as any).webkitExitFullscreen) {
+          (document as any).webkitExitFullscreen();
+        }
+      } else if (isEmulated) {
+        cabinet?.classList.remove('mobile-fullscreen-active');
+        document.body.classList.remove('fullscreen-locked');
+        updateFsBtnText();
+      } else {
+        // Try native fullscreen on cabinet
+        const reqFs = cabinet?.requestFullscreen || (cabinet as any)?.webkitRequestFullscreen;
+        if (reqFs) {
+          reqFs.call(cabinet).then(() => {
+            (screen.orientation as any)?.lock?.('landscape').catch(() => {});
+            updateFsBtnText();
+          }).catch(() => {
+            // Emulated fullscreen fallback (e.g. iOS Safari)
+            cabinet?.classList.add('mobile-fullscreen-active');
+            document.body.classList.add('fullscreen-locked');
+            updateFsBtnText();
+          });
+        } else {
+          // iOS Safari fallback
+          cabinet?.classList.add('mobile-fullscreen-active');
+          document.body.classList.add('fullscreen-locked');
+          updateFsBtnText();
+        }
+      }
+    };
+
+    btnFullscreen?.addEventListener('click', toggleFullscreen);
+    document.addEventListener('fullscreenchange', updateFsBtnText);
+    document.addEventListener('webkitfullscreenchange', updateFsBtnText);
 
     // Auto-start audio and BGM on very first user interaction
     const startAudioOnUserGesture = () => {
@@ -965,4 +1006,11 @@ class CatSumoGame {
 // Start game when DOM is loaded
 window.addEventListener('DOMContentLoaded', () => {
   new CatSumoGame();
+
+  // Register PWA Service Worker for offline play and instant loading
+  if ('serviceWorker' in navigator && (window.location.protocol.startsWith('http'))) {
+    navigator.serviceWorker.register('./sw.js').catch((err) => {
+      console.warn('SW registration warning:', err);
+    });
+  }
 });

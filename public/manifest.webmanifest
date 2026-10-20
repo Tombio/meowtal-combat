@@ -1,0 +1,35 @@
+{
+  "name": "MEOWTAL COMBAT",
+  "short_name": "Meowtal",
+  "description": "Retro 90s arcade 2-player sumo platform fighter featuring chonky cats battling atop a sacred Dohyo.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "theme_color": "#12091f",
+  "background_color": "#0c0714",
+  "categories": ["games", "arcade", "action"],
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "./icons/icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

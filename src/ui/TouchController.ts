@@ -19,13 +19,18 @@ export class TouchController {
     this.bindButton('touch-btn-right', 'right');
     this.bindButton('touch-btn-jump', 'jump');
 
-    // Only auto-show on actual mobile devices (phones/tablets with coarse touch pointer), not laptops
+    // Auto-show on mobile touch devices (phones, tablets, standalone PWAs)
     const isMobileTouchDevice =
-      window.matchMedia('(pointer: coarse)').matches &&
-      (window.innerWidth <= 850 || 'ontouchstart' in window);
+      ('ontouchstart' in window) ||
+      (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) ||
+      (typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches);
 
     if (isMobileTouchDevice) {
       this.show();
+      const btnTouch = document.getElementById('btn-touch');
+      if (btnTouch) {
+        btnTouch.textContent = 'TOUCH ON';
+      }
     }
   }
 
