@@ -150,7 +150,7 @@ export class ArcadeHUD {
 
     // 2. Center Announcements
     if (this.matchPhase === 'ROUND_READY') {
-      this.drawRoundReadyBanner(ctx, canvasWidth, canvasHeight);
+      this.drawRoundReadyBanner(ctx, canvasWidth, canvasHeight, p1, p2);
     } else if (this.matchPhase === 'ROUND_COUNTDOWN') {
       this.drawCountdownBanner(ctx, canvasWidth, canvasHeight);
     } else if (this.matchPhase === 'ROUND_INTRO') {
@@ -167,7 +167,7 @@ export class ArcadeHUD {
     }
   }
 
-  private drawRoundReadyBanner(ctx: CanvasRenderingContext2D, width: number, height: number): void {
+  private drawRoundReadyBanner(ctx: CanvasRenderingContext2D, width: number, height: number, p1: Cat, p2: Cat): void {
     const centerY = height / 2 - 35;
 
     ctx.save();
@@ -198,8 +198,9 @@ export class ArcadeHUD {
     ctx.fillText('PRESS ANY BUTTON TO READY', width / 2, centerY + 4);
 
     // Player Ready Badges
-    // Left: Mochi (P1)
-    const p1ReadyText = this.p1Ready ? '★ MOCHI: READY!' : '★ MOCHI: READY?';
+    // Left: P1
+    const p1Name = p1.name.toUpperCase();
+    const p1ReadyText = this.p1Ready ? `★ ${p1Name}: READY!` : `★ ${p1Name}: READY?`;
     const p1Color = this.p1Ready ? '#00ff66' : (Math.floor(this.frameCounter / 20) % 2 === 0 ? '#ff9800' : '#888888');
     ctx.font = '10px "Press Start 2P", monospace';
     ctx.fillStyle = p1Color;
@@ -214,8 +215,9 @@ export class ArcadeHUD {
     ctx.shadowBlur = 0;
     ctx.fillText('VS', width / 2, centerY + 34);
 
-    // Right: Kuro (P2)
-    const p2Label = this.isCPUOpponent ? 'CPU' : 'KURO';
+    // Right: P2
+    const p2Name = p2.name.toUpperCase();
+    const p2Label = this.isCPUOpponent ? `${p2Name} (CPU)` : p2Name;
     const p2ReadyText = this.p2Ready ? `READY: ${p2Label} ★` : `READY? :${p2Label} ★`;
     const p2Color = this.p2Ready ? '#00e5ff' : (Math.floor(this.frameCounter / 20) % 2 === 0 ? '#00e5ff' : '#888888');
     ctx.fillStyle = p2Color;
@@ -304,7 +306,7 @@ export class ArcadeHUD {
     ctx.font = '12px "Press Start 2P", monospace';
     ctx.fillStyle = '#ff9800';
     ctx.textAlign = 'left';
-    ctx.fillText('★ MOCHI', 24, 26);
+    ctx.fillText(`★ ${p1.name.toUpperCase()}`, 24, 26);
 
     // P1 Golden Fish Win Icons
     for (let i = 0; i < this.maxRoundsToWin; i++) {
@@ -327,7 +329,7 @@ export class ArcadeHUD {
     ctx.font = '12px "Press Start 2P", monospace';
     ctx.fillStyle = '#00e5ff';
     ctx.textAlign = 'right';
-    const p2TopName = this.isCPUOpponent ? 'KURO (CPU) ★' : 'KURO ★';
+    const p2TopName = this.isCPUOpponent ? `${p2.name.toUpperCase()} (CPU) ★` : `${p2.name.toUpperCase()} ★`;
     ctx.fillText(p2TopName, width - 24, 26);
 
     // P2 Golden Fish Win Icons

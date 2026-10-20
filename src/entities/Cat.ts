@@ -14,6 +14,110 @@ export type CatState =
   | 'PARRY'
   | 'PARRY_WHIFF';
 
+export type CatBreed = 
+  | 'ginger_tabby' 
+  | 'black_tuxedo' 
+  | 'british_blue' 
+  | 'calico_acrobat';
+
+export interface FighterStats {
+  speed: number;  // 1-5 for UI display
+  weight: number; // 1-5 for UI display
+  jump: number;   // 1-5 for UI display
+}
+
+export interface FighterDefinition {
+  breed: CatBreed;
+  name: string;
+  title: string;
+  description: string;
+  weightMultiplier: number;
+  speedMultiplier: number;
+  jumpMultiplier: number;
+  stats: FighterStats;
+  furColor: string;
+  furShade: string;
+  bellyColor: string;
+  eyeColor: string;
+  beltColor: string;
+  beltBorder: string;
+}
+
+export const FIGHTER_PROFILES: Record<CatBreed, FighterDefinition> = {
+  ginger_tabby: {
+    breed: 'ginger_tabby',
+    name: 'Mochi',
+    title: 'THE BALANCED SUMO',
+    description: 'Classic all-rounder with balanced weight, agile hops, and rock-solid fundamentals.',
+    weightMultiplier: 1.00,
+    speedMultiplier: 1.00,
+    jumpMultiplier: 1.00,
+    stats: { speed: 3, weight: 3, jump: 3 },
+    furColor: '#ff8c1a',
+    furShade: '#d96800',
+    bellyColor: '#fff3e0',
+    eyeColor: '#2c3e50',
+    beltColor: '#e91e63',
+    beltBorder: '#ad1457',
+  },
+  black_tuxedo: {
+    breed: 'black_tuxedo',
+    name: 'Kuro',
+    title: 'THE SHADOW SHINOBI',
+    description: 'Swift footwork and rapid ring repositioning. Dart around opponents and bait whiffs.',
+    weightMultiplier: 1.00,
+    speedMultiplier: 1.16,
+    jumpMultiplier: 1.00,
+    stats: { speed: 5, weight: 3, jump: 3 },
+    furColor: '#23202b',
+    furShade: '#14121a',
+    bellyColor: '#f5f5fc',
+    eyeColor: '#ffd500',
+    beltColor: '#00b0ff',
+    beltBorder: '#007bb5',
+  },
+  british_blue: {
+    breed: 'british_blue',
+    name: 'Boris',
+    title: 'YOKOZUNA CHONK',
+    description: 'Immense mass and knockback resistance. Hard to budge, but slower on foot.',
+    weightMultiplier: 1.25,
+    speedMultiplier: 0.84,
+    jumpMultiplier: 0.92,
+    stats: { speed: 2, weight: 5, jump: 2 },
+    furColor: '#5a677d',
+    furShade: '#3d4655',
+    bellyColor: '#cbd5e1',
+    eyeColor: '#e67e22',
+    beltColor: '#f1c40f',
+    beltBorder: '#b7950b',
+  },
+  calico_acrobat: {
+    breed: 'calico_acrobat',
+    name: 'Wasabi',
+    title: 'THE FLYING ACROBAT',
+    description: 'Stratospheric leap altitude and soaring aerial pounces. Takes more recoil if caught.',
+    weightMultiplier: 0.88,
+    speedMultiplier: 1.04,
+    jumpMultiplier: 1.16,
+    stats: { speed: 4, weight: 2, jump: 5 },
+    furColor: '#f8f9fa',
+    furShade: '#e2e8f0',
+    bellyColor: '#ffffff',
+    eyeColor: '#2ecc71',
+    beltColor: '#27ae60',
+    beltBorder: '#1e8449',
+  },
+};
+
+export interface CatCombatStats {
+  bumpsLanded: number;
+  megaBonks: number;
+  parriesSuccessful: number;
+  turboHitsLanded: number;
+  teeterSaves: number;
+}
+
 export interface Afterimage {
   x: number;
   y: number;
@@ -25,16 +129,32 @@ export interface Afterimage {
 
 export interface CatConfig {
   id: PlayerId;
-  name: string;
-  breed: 'ginger_tabby' | 'black_tuxedo';
+  name?: string;
+  breed: CatBreed;
   initialX: number;
   initialFacing: 1 | -1;
 }
 
 export class Cat {
   public readonly id: PlayerId;
-  public readonly name: string;
-  public readonly breed: 'ginger_tabby' | 'black_tuxedo';
+  public name: string;
+  public breed: CatBreed;
+  public profile: FighterDefinition;
+
+  // Archetype Multipliers
+  public weightMultiplier: number = 1.0;
+  public speedMultiplier: number = 1.0;
+  public jumpMultiplier: number = 1.0;
+
+  // Combat Stats Tracking
+  public combatStats: CatCombatStats = {
+    bumpsLanded: 0,
+    megaBonks: 0,
+    parriesSuccessful: 0,
+    turboHitsLanded: 0,
+    teeterSaves: 0,
+  };
+  private wasTeetering: boolean = false;
 
   // Position & Velocity
   public x: number;
@@ -80,11 +200,35 @@ export class Cat {
 
   constructor(config: CatConfig, ringSurfaceY: number) {
     this.id = config.id;
-    this.name = config.name;
     this.breed = config.breed;
+    this.profile = FIGHTER_PROFILES[config.breed] || FIGHTER_PROFILES.ginger_tabby;
+    this.name = config.name || this.profile.name;
+    this.weightMultiplier = this.profile.weightMultiplier;
+    this.speedMultiplier = this.profile.speedMultiplier;
+    this.jumpMultiplier = this.profile.jumpMultiplier;
     this.x = config.initialX;
     this.y = ringSurfaceY - this.height;
     this.facing = config.initialFacing;
+  }
+
+  public setBreed(breed: CatBreed, customName?: string): void {
+    this.breed = breed;
+    this.profile = FIGHTER_PROFILES[breed] || FIGHTER_PROFILES.ginger_tabby;
+    this.name = customName || this.profile.name;
+    this.weightMultiplier = this.profile.weightMultiplier;
+    this.speedMultiplier = this.profile.speedMultiplier;
+    this.jumpMultiplier = this.profile.jumpMultiplier;
+  }
+
+  public resetCombatStats(): void {
+    this.combatStats = {
+      bumpsLanded: 0,
+      megaBonks: 0,
+      parriesSuccessful: 0,
+      turboHitsLanded: 0,
+      teeterSaves: 0,
+    };
+    this.wasTeetering = false;
   }
 
   public resetPosition(spawnX: number, ringSurfaceY: number, facing: 1 | -1): void {
@@ -106,6 +250,7 @@ export class Cat {
     this.parryTimer = 0;
     this.parryWhiffTimer = 0;
     this.parryCooldown = 0;
+    this.wasTeetering = false;
   }
 
   public canParry(): boolean {
@@ -170,7 +315,7 @@ export class Cat {
 
   public jump(): void {
     if (this.isGrounded && this.state !== 'DAZED' && this.state !== 'RING_OUT') {
-      this.vy = -12.4; // Initial jump burst
+      this.vy = -12.4 * this.jumpMultiplier; // Initial jump burst scaled by archetype
       this.isGrounded = false;
       this.hasJumpedThisPress = true;
       this.scaleX = 0.75;
@@ -181,7 +326,8 @@ export class Cat {
   }
 
   public applyKnockback(impulseX: number, impulseY: number, dazeFrames: number): void {
-    this.vx = impulseX;
+    const effectiveImpulseX = impulseX / this.weightMultiplier;
+    this.vx = effectiveImpulseX;
     this.vy = impulseY;
     if (impulseY !== 0) {
       this.isGrounded = false;
@@ -393,10 +539,11 @@ export class Cat {
       // Balanced sliding friction while dazed
       this.vx *= 0.89;
     } else {
-      // Player Movement controls (reduced to 50% speed during cooldown)
-      const speedMultiplier = this.turboCooldown > 0 ? 0.5 : 1.0;
-      const accel = (this.isGrounded ? 0.72 : 0.45) * speedMultiplier;
-      const maxSpeed = 4.4 * speedMultiplier;
+      // Player Movement controls (reduced to 50% speed during cooldown, scaled by archetype)
+      const cooldownMult = this.turboCooldown > 0 ? 0.5 : 1.0;
+      const speedMult = cooldownMult * this.speedMultiplier;
+      const accel = (this.isGrounded ? 0.72 : 0.45) * speedMult;
+      const maxSpeed = 4.4 * speedMult;
 
       if (inputLeft) {
         this.vx -= accel;
@@ -470,10 +617,19 @@ export class Cat {
 
         if (teeter !== null && Math.abs(this.vx) < 1.0) {
           this.state = 'TEETER';
+          this.wasTeetering = true;
         } else if (Math.abs(this.vx) > 0.4) {
           this.state = 'WADDLE';
+          if (this.wasTeetering && teeter === null) {
+            this.combatStats.teeterSaves++;
+            this.wasTeetering = false;
+          }
         } else {
           this.state = 'IDLE';
+          if (this.wasTeetering && teeter === null) {
+            this.combatStats.teeterSaves++;
+            this.wasTeetering = false;
+          }
         }
       }
     }

@@ -59,10 +59,12 @@ export interface NetworkStateSnapshot {
   p2Ready?: boolean;
   countdownText?: string;
   bump?: BumpEventPacket | null;
+  p1Breed?: string;
+  p2Breed?: string;
 }
 
 export interface NetworkSignal {
-  type: 'START_MATCH' | 'RESTART_ROUND' | 'NEXT_TRACK' | 'BONK_EVENT' | 'PLAYER_READY';
+  type: 'START_MATCH' | 'RESTART_ROUND' | 'NEXT_TRACK' | 'BONK_EVENT' | 'PLAYER_READY' | 'CHAR_SELECT';
   payload?: any;
 }
 

@@ -1,7 +1,9 @@
-import { Cat } from '../entities/Cat';
+import { Cat, FIGHTER_PROFILES } from '../entities/Cat';
 
 export class CatRenderer {
   public draw(ctx: CanvasRenderingContext2D, cat: Cat): void {
+    const profile = cat.profile || FIGHTER_PROFILES[cat.breed] || FIGHTER_PROFILES.ginger_tabby;
+
     // 0. Draw afterimages (motion blur trail)
     if (cat.afterimages.length > 0) {
       for (const img of cat.afterimages) {
@@ -11,7 +13,7 @@ export class CatRenderer {
         const imgBottomY = img.y + cat.height;
         ctx.translate(imgCenterX, imgBottomY);
         ctx.scale(img.scaleX * img.facing, img.scaleY);
-        ctx.fillStyle = cat.breed === 'ginger_tabby' ? '#ff9d2e' : '#4a3b69';
+        ctx.fillStyle = profile.furColor;
         // Silhouette body
         ctx.beginPath();
         ctx.ellipse(0, -24, 26, 22, 0, 0, Math.PI * 2);
@@ -51,14 +53,17 @@ export class CatRenderer {
 
     // Color Palettes
     const isGinger = cat.breed === 'ginger_tabby';
-    const furColor = isGinger ? '#ff8c1a' : '#23202b';
-    const furShade = isGinger ? '#d96800' : '#14121a';
-    const bellyColor = isGinger ? '#fff3e0' : '#f5f5fc';
+    const isBoris = cat.breed === 'british_blue';
+    const isCalico = cat.breed === 'calico_acrobat';
+
+    const furColor = profile.furColor;
+    const furShade = profile.furShade;
+    const bellyColor = profile.bellyColor;
     const earInner = '#ffafbd';
-    const noseColor = '#ff6b8b';
-    const eyeColor = isGinger ? '#2c3e50' : '#ffd500';
-    const beltColor = isGinger ? '#e91e63' : '#00b0ff'; // P1 Pink/Red, P2 Cyan
-    const beltBorder = isGinger ? '#ad1457' : '#007bb5';
+    const noseColor = cat.breed === 'black_tuxedo' ? '#333' : '#ff6b8b';
+    const eyeColor = profile.eyeColor;
+    const beltColor = profile.beltColor;
+    const beltBorder = profile.beltBorder;
 
     // 1. Shadow underneath (if grounded or near platform)
     if (cat.isGrounded) {
@@ -75,6 +80,17 @@ export class CatRenderer {
     ctx.beginPath();
     ctx.ellipse(-20, -18 + tailWag * 0.5, 7, 14, -0.6 + tailWag * 0.04, 0, Math.PI * 2);
     ctx.fill();
+    if (isCalico) {
+      // Tri-color calico tail rings
+      ctx.fillStyle = '#e67e22';
+      ctx.beginPath();
+      ctx.ellipse(-21, -22 + tailWag * 0.5, 5.5, 4, -0.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#2c3e50';
+      ctx.beginPath();
+      ctx.ellipse(-19, -14 + tailWag * 0.5, 6, 4, -0.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
 
     // 3. Cute Chubby Body (Rounded Mochi Ball)
@@ -83,6 +99,20 @@ export class CatRenderer {
     // Chubby torso
     ctx.ellipse(0, -24, 26, 22, 0, 0, Math.PI * 2);
     ctx.fill();
+
+    // Boris Extra Chubby Sumo Jowls
+    if (isBoris) {
+      ctx.fillStyle = furColor;
+      ctx.beginPath();
+      ctx.arc(-18, -21, 8, 0, Math.PI * 2);
+      ctx.arc(18, -21, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = furShade;
+      ctx.beginPath();
+      ctx.arc(-18, -19, 7, 0, Math.PI * 0.8);
+      ctx.arc(18, -19, 7, 0.2 * Math.PI, Math.PI);
+      ctx.fill();
+    }
 
     // Body shading (bottom rim)
     ctx.fillStyle = furShade;
@@ -96,7 +126,7 @@ export class CatRenderer {
     ctx.ellipse(2, -20, 15, 14, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Tabby Stripes (if Ginger)
+    // Breed-specific coat markings
     if (isGinger) {
       ctx.fillStyle = furShade;
       // Forehead stripes
@@ -106,6 +136,17 @@ export class CatRenderer {
       // Side flank stripes
       ctx.fillRect(-18, -26, 4, 3);
       ctx.fillRect(-17, -20, 4, 3);
+    } else if (isCalico) {
+      // Dark slate patch on left body flank
+      ctx.fillStyle = '#2c3e50';
+      ctx.beginPath();
+      ctx.ellipse(-14, -20, 8, 9, -0.2, 0, Math.PI * 2);
+      ctx.fill();
+      // Ginger patch on right face/head
+      ctx.fillStyle = '#e67e22';
+      ctx.beginPath();
+      ctx.ellipse(10, -36, 10, 11, 0.2, 0, Math.PI * 2);
+      ctx.fill();
     }
 
     // 5. Cute Sumo Belt (Ribbon Mawashi)
@@ -143,7 +184,7 @@ export class CatRenderer {
     ctx.fill();
 
     // Right Ear
-    ctx.fillStyle = furColor;
+    ctx.fillStyle = isCalico ? '#e67e22' : furColor;
     ctx.beginPath();
     ctx.moveTo(8, -42);
     ctx.lineTo(24, -54);
@@ -275,7 +316,7 @@ export class CatRenderer {
     ctx.fill();
 
     // 8. Whiskers
-    ctx.strokeStyle = isGinger ? '#d96800' : '#888';
+    ctx.strokeStyle = isGinger ? '#d96800' : (isBoris ? '#cbd5e1' : (isCalico ? '#64748b' : '#888'));
     ctx.lineWidth = 1;
     // Left whiskers
     ctx.beginPath();
@@ -477,5 +518,24 @@ export class CatRenderer {
     ctx.arc(cx - 16, cy - dropOffset, 3, 0, Math.PI * 2);
     ctx.arc(cx + 16, cy - dropOffset + 4, 3, 0, Math.PI * 2);
     ctx.fill();
+  }
+
+  public drawPortrait(
+    ctx: CanvasRenderingContext2D,
+    breed: import('../entities/Cat').CatBreed,
+    centerX: number,
+    bottomY: number,
+    scale = 1.0,
+    facing: 1 | -1 = 1,
+    animTick = 0
+  ): void {
+    const dummyCat = new Cat({ id: 'p1', breed, initialX: 0, initialFacing: facing }, 0);
+    dummyCat.x = centerX - dummyCat.width / 2;
+    dummyCat.y = bottomY - dummyCat.height;
+    dummyCat.facing = facing;
+    dummyCat.scaleX = scale;
+    dummyCat.scaleY = scale;
+    dummyCat.animTimer = animTick;
+    this.draw(ctx, dummyCat);
   }
 }

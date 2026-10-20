@@ -240,7 +240,7 @@
     }
 
     /* Modals: Fixed Full-Screen Overlays that always fit and scroll */
-    #key-modal, #online-modal, #main-menu-modal {
+    #key-modal, #online-modal, #main-menu-modal, #char-select-modal, #match-stats-modal {
       position: fixed;
       top: 0;
       left: 0;
@@ -261,7 +261,7 @@
       overscroll-behavior: contain;
     }
 
-    #key-modal.active, #main-menu-modal.active {
+    #key-modal.active, #main-menu-modal.active, #char-select-modal.active, #match-stats-modal.active {
       display: flex;
     }
 
@@ -454,6 +454,195 @@
       border-color: #25d366 !important;
       box-shadow: 0 3px 0 #075e54 !important;
       color: #fff !important;
+    }
+
+    /* Character Select Modal Styles */
+    .char-select-box {
+      max-width: 760px;
+      border-color: #00f0ff !important;
+      box-shadow: 0 0 35px rgba(0, 240, 255, 0.45);
+      padding: 16px 14px;
+    }
+
+    .char-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    @media (max-width: 640px) {
+      .char-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .fighter-card {
+      background: #150a2b;
+      border: 3px solid #4a2873;
+      border-radius: 6px;
+      padding: 8px 6px;
+      position: relative;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .fighter-card:hover {
+      border-color: #bb86fc;
+      transform: translateY(-2px);
+    }
+
+    .fighter-card.selected-p1 {
+      border-color: #ff007f !important;
+      box-shadow: 0 0 16px rgba(255, 0, 127, 0.7);
+      background: #240d38;
+    }
+
+    .fighter-card.selected-p2 {
+      border-color: #00e5ff !important;
+      box-shadow: 0 0 16px rgba(0, 229, 255, 0.7);
+      background: #0d2738;
+    }
+
+    .fighter-card.selected-p1.selected-p2 {
+      border-color: #ffe600 !important;
+      box-shadow: 0 0 20px rgba(255, 230, 0, 0.85);
+      background: #2d1e10;
+    }
+
+    .badge-tag {
+      position: absolute;
+      top: 5px;
+      font-size: 7px;
+      padding: 2px 5px;
+      border-radius: 3px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      z-index: 5;
+    }
+
+    .tag-p1 {
+      left: 5px;
+      background: #ff007f;
+      color: #fff;
+      box-shadow: 0 0 6px #ff007f;
+    }
+
+    .tag-p2 {
+      right: 5px;
+      background: #00e5ff;
+      color: #000;
+      box-shadow: 0 0 6px #00e5ff;
+    }
+
+    .fighter-card-canvas {
+      width: 90px;
+      height: 75px;
+      image-rendering: pixelated;
+      margin-bottom: 4px;
+    }
+
+    .fighter-name {
+      font-size: 9px;
+      color: #ffe600;
+      margin-bottom: 2px;
+      letter-spacing: 1px;
+    }
+
+    .fighter-title {
+      font-size: 6px;
+      color: #bb86fc;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .stat-row {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 6px;
+      margin: 2px 0;
+      color: #aaa;
+    }
+
+    .stat-track {
+      width: 42px;
+      height: 5px;
+      background: #281647;
+      border-radius: 2px;
+      overflow: hidden;
+      display: flex;
+    }
+
+    .stat-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #ff9800, #ffeb3b);
+      border-radius: 2px;
+    }
+
+    .stat-fill.cyan {
+      background: linear-gradient(90deg, #00b0ff, #00e5ff);
+    }
+
+    .stat-fill.magenta {
+      background: linear-gradient(90deg, #e91e63, #ff4081);
+    }
+
+    /* Post Match Stats Modal Styles */
+    .stats-box {
+      max-width: 480px;
+      border-color: #ffe600 !important;
+      box-shadow: 0 0 35px rgba(255, 230, 0, 0.5);
+    }
+
+    .stats-table {
+      width: 100%;
+      margin: 12px 0;
+      font-size: 8px;
+    }
+
+    .stats-table-header {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 10px;
+      background: #2b134d;
+      border-radius: 4px;
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+
+    .stats-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px 10px;
+      background: #190b2e;
+      margin-bottom: 4px;
+      border-radius: 3px;
+    }
+
+    .stats-row span:nth-child(2) {
+      color: #bb86fc;
+      font-size: 7px;
+    }
+
+    .mvp-badge {
+      margin: 10px 0 14px;
+      padding: 7px 14px;
+      background: linear-gradient(90deg, #ff007f, #7b1fa2);
+      border: 2px solid #ff80ab;
+      border-radius: 4px;
+      font-size: 8px;
+      color: #fff;
+      text-shadow: 1px 1px #000;
+      display: inline-block;
+      animation: pulse 1s infinite alternate;
     }
 
     .online-pulse-indicator {
@@ -1137,6 +1326,104 @@
           <div style="margin-top: 14px; display: flex; justify-content: center; gap: 8px;">
             <button id="menu-resume-btn" class="arcade-btn" style="background: linear-gradient(180deg, #ff0055, #c2185b); border-color: #ff80ab; font-size: 9px; padding: 10px 18px;">▶ RESUME / CLOSE</button>
             <button id="menu-keys-btn" class="arcade-btn secondary" style="font-size: 9px; padding: 10px 14px;">⌨ REBIND KEYS</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Character Selection Modal inside screen -->
+      <div id="char-select-modal">
+        <div class="modal-box char-select-box">
+          <div class="modal-title" style="color: #00f0ff; text-shadow: 0 0 10px #00f0ff;">★ SELECT YOUR FIGHTER ★</div>
+          <div id="char-select-mode-tag" style="font-size: 8px; color: #ffe600; margin-bottom: 12px; letter-spacing: 1px;">1P VS CPU</div>
+
+          <div class="char-grid">
+            <!-- Mochi Card -->
+            <div class="fighter-card" data-breed="ginger_tabby">
+              <span class="badge-tag tag-p1" style="display: none;">P1</span>
+              <span class="badge-tag tag-p2" style="display: none;">P2</span>
+              <canvas class="fighter-card-canvas" width="90" height="75"></canvas>
+              <div class="fighter-name">MOCHI</div>
+              <div class="fighter-title">BALANCED SUMO</div>
+              <div class="stat-row"><span>SPEED</span><div class="stat-track"><div class="stat-fill" style="width: 60%"></div></div></div>
+              <div class="stat-row"><span>WEIGHT</span><div class="stat-track"><div class="stat-fill" style="width: 60%"></div></div></div>
+              <div class="stat-row"><span>JUMP</span><div class="stat-track"><div class="stat-fill" style="width: 60%"></div></div></div>
+            </div>
+
+            <!-- Kuro Card -->
+            <div class="fighter-card" data-breed="black_tuxedo">
+              <span class="badge-tag tag-p1" style="display: none;">P1</span>
+              <span class="badge-tag tag-p2" style="display: none;">P2</span>
+              <canvas class="fighter-card-canvas" width="90" height="75"></canvas>
+              <div class="fighter-name">KURO</div>
+              <div class="fighter-title">SHADOW SHINOBI</div>
+              <div class="stat-row"><span>SPEED</span><div class="stat-track"><div class="stat-fill cyan" style="width: 100%"></div></div></div>
+              <div class="stat-row"><span>WEIGHT</span><div class="stat-track"><div class="stat-fill" style="width: 60%"></div></div></div>
+              <div class="stat-row"><span>JUMP</span><div class="stat-track"><div class="stat-fill cyan" style="width: 60%"></div></div></div>
+            </div>
+
+            <!-- Boris Card -->
+            <div class="fighter-card" data-breed="british_blue">
+              <span class="badge-tag tag-p1" style="display: none;">P1</span>
+              <span class="badge-tag tag-p2" style="display: none;">P2</span>
+              <canvas class="fighter-card-canvas" width="90" height="75"></canvas>
+              <div class="fighter-name">BORIS</div>
+              <div class="fighter-title">YOKOZUNA CHONK</div>
+              <div class="stat-row"><span>SPEED</span><div class="stat-track"><div class="stat-fill magenta" style="width: 40%"></div></div></div>
+              <div class="stat-row"><span>WEIGHT</span><div class="stat-track"><div class="stat-fill magenta" style="width: 100%"></div></div></div>
+              <div class="stat-row"><span>JUMP</span><div class="stat-track"><div class="stat-fill magenta" style="width: 45%"></div></div></div>
+            </div>
+
+            <!-- Wasabi Card -->
+            <div class="fighter-card" data-breed="calico_acrobat">
+              <span class="badge-tag tag-p1" style="display: none;">P1</span>
+              <span class="badge-tag tag-p2" style="display: none;">P2</span>
+              <canvas class="fighter-card-canvas" width="90" height="75"></canvas>
+              <div class="fighter-name">WASABI</div>
+              <div class="fighter-title">FLYING ACROBAT</div>
+              <div class="stat-row"><span>SPEED</span><div class="stat-track"><div class="stat-fill" style="width: 75%"></div></div></div>
+              <div class="stat-row"><span>WEIGHT</span><div class="stat-track"><div class="stat-fill" style="width: 45%"></div></div></div>
+              <div class="stat-row"><span>JUMP</span><div class="stat-track"><div class="stat-fill" style="width: 100%"></div></div></div>
+            </div>
+          </div>
+
+          <div style="font-size: 7px; color: #aaa; margin-bottom: 12px;">
+            P1: [A][D] Navigate | P2: [◀][▶] Navigate | Tap or Click to Select
+          </div>
+
+          <div style="display: flex; justify-content: center; gap: 10px;">
+            <button id="btn-char-select-fight" class="arcade-btn" style="background: linear-gradient(180deg, #ff007f, #b30059); border-color: #ff80ab; font-size: 10px; padding: 10px 22px;">🥋 FIGHT! 🥋</button>
+            <button id="btn-char-select-back" class="arcade-btn secondary" style="font-size: 9px; padding: 10px 16px;">BACK</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Post-Match Battle Stats Modal inside screen -->
+      <div id="match-stats-modal">
+        <div class="modal-box stats-box">
+          <div class="modal-title" style="color: #ffe600; font-size: 13px; text-shadow: 0 0 10px #ffe600;">🏆 TOURNAMENT CHAMPION 🏆</div>
+          <canvas id="stats-winner-canvas" width="120" height="90" style="margin: 0 auto; display: block;"></canvas>
+          <div id="stats-winner-name" style="font-size: 13px; color: #fff; margin: 4px 0 2px; text-shadow: 2px 2px #000;">MOCHI WINS!</div>
+          <div id="stats-winner-title" style="font-size: 7px; color: #00f0ff; margin-bottom: 10px;">THE BALANCED SUMO</div>
+
+          <div id="stats-mvp-badge" class="mvp-badge">🎖️ AWARDED: THE PARRY SENSEI 🎖️</div>
+
+          <div class="stats-table">
+            <div class="stats-table-header">
+              <span id="stats-p1-header" style="color: #ff9800;">P1: MOCHI</span>
+              <span style="color: #ffe600;">HEAD-TO-HEAD</span>
+              <span id="stats-p2-header" style="color: #00e5ff;">P2: KURO</span>
+            </div>
+            <div class="stats-row"><span id="stats-p1-bumps">0</span><span>BUMPS LANDED</span><span id="stats-p2-bumps">0</span></div>
+            <div class="stats-row"><span id="stats-p1-megas">0</span><span>MEGA BONKS</span><span id="stats-p2-megas">0</span></div>
+            <div class="stats-row"><span id="stats-p1-parries">0</span><span>PARRIES MADE</span><span id="stats-p2-parries">0</span></div>
+            <div class="stats-row"><span id="stats-p1-turbos">0</span><span>TURBO HITS</span><span id="stats-p2-turbos">0</span></div>
+            <div class="stats-row"><span id="stats-p1-teeters">0</span><span>EDGE CLUTCHES</span><span id="stats-p2-teeters">0</span></div>
+          </div>
+
+          <div style="display: flex; justify-content: center; gap: 8px; margin-top: 14px; flex-wrap: wrap;">
+            <button id="btn-stats-rematch" class="arcade-btn" style="background: linear-gradient(180deg, #ff007f, #b30059); border-color: #ff80ab; font-size: 9px; padding: 9px 16px;">🔄 REMATCH</button>
+            <button id="btn-stats-select" class="arcade-btn secondary" style="font-size: 9px; padding: 9px 14px;">🐾 FIGHTERS</button>
+            <button id="btn-stats-menu" class="arcade-btn secondary" style="font-size: 9px; padding: 9px 14px;">☰ MENU</button>
           </div>
         </div>
       </div>

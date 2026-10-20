@@ -904,4 +904,149 @@ assert(ringOutArena.isRingOut(400, 550, 56, 52), 'Cat below canvas floor (y=550 
 assert(ringOutArena.isRingOut(-60, 300, 56, 52), 'Cat past canvas left bound is RING_OUT');
 assert(ringOutArena.isRingOut(970, 300, 56, 52), 'Cat past canvas right bound is RING_OUT');
 
+console.log('\n--- 19. Testing Fighter Archetype Multipliers & Balanced Matchups ---');
+import { FIGHTER_PROFILES, CatBreed } from '../src/entities/Cat';
+
+// 19a: Profile integrity
+const breeds: CatBreed[] = ['ginger_tabby', 'black_tuxedo', 'british_blue', 'calico_acrobat'];
+for (const breed of breeds) {
+  const prof = FIGHTER_PROFILES[breed];
+  assert(!!prof.name && !!prof.title && !!prof.description, `Profile for ${breed} has name, title, and description`);
+  assert(prof.weightMultiplier >= 0.85 && prof.weightMultiplier <= 1.35, `${breed} weight multiplier is strictly within balanced corridor`);
+  assert(prof.speedMultiplier >= 0.80 && prof.speedMultiplier <= 1.25, `${breed} speed multiplier is strictly within balanced corridor`);
+  assert(prof.jumpMultiplier >= 0.90 && prof.jumpMultiplier <= 1.20, `${breed} jump multiplier is strictly within balanced corridor`);
+}
+
+// 19b: Mass Knockback Resistance (Boris vs Kuro vs Wasabi)
+{
+  const p1Attacker = new Cat({ id: 'p1', name: 'Mochi', breed: 'ginger_tabby', initialX: 400, initialFacing: 1 }, arena.config.ringSurfaceY);
+  const p2Boris = new Cat({ id: 'p2', name: 'Boris', breed: 'british_blue', initialX: 420, initialFacing: -1 }, arena.config.ringSurfaceY);
+  const p2Kuro = new Cat({ id: 'p2', name: 'Kuro', breed: 'black_tuxedo', initialX: 420, initialFacing: -1 }, arena.config.ringSurfaceY);
+  const p2Wasabi = new Cat({ id: 'p2', name: 'Wasabi', breed: 'calico_acrobat', initialX: 420, initialFacing: -1 }, arena.config.ringSurfaceY);
+
+  collision.resetCooldown();
+  p1Attacker.y = p2Boris.y - 30;
+  collision.checkAndResolveCats(p1Attacker, p2Boris);
+  const borisKnockback = Math.abs(p2Boris.vx);
+
+  collision.resetCooldown();
+  p1Attacker.y = p2Kuro.y - 30;
+  collision.checkAndResolveCats(p1Attacker, p2Kuro);
+  const kuroKnockback = Math.abs(p2Kuro.vx);
+
+  collision.resetCooldown();
+  p1Attacker.y = p2Wasabi.y - 30;
+  collision.checkAndResolveCats(p1Attacker, p2Wasabi);
+  const wasabiKnockback = Math.abs(p2Wasabi.vx);
+
+  console.log(`Boris knockback (1.25x mass): ${borisKnockback.toFixed(2)} px/frame`);
+  console.log(`Kuro knockback (1.00x mass): ${kuroKnockback.toFixed(2)} px/frame`);
+  console.log(`Wasabi knockback (0.88x mass): ${wasabiKnockback.toFixed(2)} px/frame`);
+
+  assert(borisKnockback < kuroKnockback, 'Boris takes strictly less knockback than Kuro due to heavy mass');
+  assert(wasabiKnockback > kuroKnockback, 'Wasabi takes greater knockback than Kuro due to lighter mass');
+}
+
+// 19c: Jump Altitude Clearance across all 4 Archetypes
+{
+  for (const breed of breeds) {
+    const testCat = new Cat({ id: 'p1', breed, initialX: 400, initialFacing: 1 }, arena.config.ringSurfaceY);
+    const startY = testCat.y;
+    testCat.jump();
+    let peakY = startY;
+
+    for (let f = 0; f < 30; f++) {
+      testCat.updatePhysics(arena, false, false, true, 500);
+      if (testCat.y < peakY) peakY = testCat.y;
+    }
+
+    const altitude = startY - peakY;
+    console.log(`${breed} jump altitude: ${altitude.toFixed(1)}px (Cat height: 52px)`);
+    assert(altitude > 120, `${breed} achieves altitude (${altitude.toFixed(1)}px) cleanly vaulting over opponent`);
+  }
+}
+
+// 19d: Ground Waddle Speed (Kuro speedster vs Boris heavy)
+{
+  const kuro = new Cat({ id: 'p1', name: 'Kuro', breed: 'black_tuxedo', initialX: 400, initialFacing: 1 }, arena.config.ringSurfaceY);
+  const boris = new Cat({ id: 'p2', name: 'Boris', breed: 'british_blue', initialX: 400, initialFacing: 1 }, arena.config.ringSurfaceY);
+
+  for (let f = 0; f < 30; f++) {
+    kuro.updatePhysics(arena, false, true, false, 600);
+    boris.updatePhysics(arena, false, true, false, 600);
+  }
+
+  const kuroDist = kuro.x - 400;
+  const borisDist = boris.x - 400;
+  console.log(`30-frame waddle distance - Kuro: ${kuroDist.toFixed(1)}px, Boris: ${borisDist.toFixed(1)}px`);
+  assert(kuroDist > borisDist, 'Kuro covers strictly more distance than Boris due to 1.16x speed multiplier');
+}
+
+console.log('\n--- 20. Testing Combat Statistics Tracking ---');
+{
+  const catA = new Cat({ id: 'p1', name: 'Mochi', breed: 'ginger_tabby', initialX: 400, initialFacing: 1 }, arena.config.ringSurfaceY);
+  const catB = new Cat({ id: 'p2', name: 'Kuro', breed: 'black_tuxedo', initialX: 420, initialFacing: -1 }, arena.config.ringSurfaceY);
+
+  assert(catA.combatStats.bumpsLanded === 0, 'Initial bumpsLanded is 0');
+  assert(catA.combatStats.megaBonks === 0, 'Initial megaBonks is 0');
+  assert(catA.combatStats.parriesSuccessful === 0, 'Initial parriesSuccessful is 0');
+
+  // Trigger Bump
+  collision.resetCooldown();
+  catA.y = catB.y - 35; // >32 delta triggers mega bonk
+  collision.checkAndResolveCats(catA, catB);
+
+  assert(catA.combatStats.bumpsLanded === 1, 'Bumps landed incremented to 1');
+  assert(catA.combatStats.megaBonks === 1, 'Mega bonks incremented to 1');
+
+  // Trigger Parry
+  collision.resetCooldown();
+  catB.startParry();
+  collision.checkAndResolveCats(catA, catB);
+  assert(catB.combatStats.parriesSuccessful === 1, 'Defender parriesSuccessful incremented to 1');
+
+  // Trigger Turbo Hit
+  collision.resetCooldown();
+  catA.startTurboAttack(1);
+  collision.checkAndResolveCats(catA, catB);
+  assert(catA.combatStats.turboHitsLanded === 1, 'Attacker turboHitsLanded incremented to 1');
+
+  // Trigger Teeter Save
+  const edgeArena = new Arena(960, 540);
+  const teeterCat = new Cat({ id: 'p1', name: 'Boris', breed: 'british_blue', initialX: 200, initialFacing: -1 }, edgeArena.config.ringSurfaceY);
+  teeterCat.vx = 0.5;
+  teeterCat.updatePhysics(edgeArena, false, false, false, 400);
+  assert(teeterCat.state === 'TEETER', 'Cat entered TEETER state');
+
+  // Cat walks back to center
+  for (let f = 0; f < 15; f++) {
+    teeterCat.updatePhysics(edgeArena, false, true, false, 400);
+  }
+  assert(teeterCat.combatStats.teeterSaves === 1, 'Teeter saves incremented to 1 on recovering to safe Dohyo');
+
+  // Reset Combat Stats
+  catA.resetCombatStats();
+  assert(catA.combatStats.bumpsLanded === 0, 'Combat stats cleanly reset');
+}
+
+console.log('\n--- 21. Testing Dynamic Breed Swapping & SetBreed ---');
+{
+  const testCat = new Cat({ id: 'p1', name: 'Mochi', breed: 'ginger_tabby', initialX: 400, initialFacing: 1 }, arena.config.ringSurfaceY);
+  assert(testCat.breed === 'ginger_tabby', 'Initial breed is ginger_tabby');
+  assert(testCat.weightMultiplier === 1.0, 'Initial weight is 1.0');
+
+  testCat.setBreed('british_blue');
+  assert(testCat.breed === 'british_blue', 'Breed updated to british_blue');
+  assert(testCat.name === 'Boris', 'Name updated to Boris');
+  assert(testCat.weightMultiplier === 1.25, 'Weight multiplier updated to 1.25');
+  assert(testCat.speedMultiplier === 0.84, 'Speed multiplier updated to 0.84');
+  assert(testCat.jumpMultiplier === 0.92, 'Jump multiplier updated to 0.92');
+
+  testCat.setBreed('calico_acrobat');
+  assert(testCat.breed === 'calico_acrobat', 'Breed updated to calico_acrobat');
+  assert(testCat.name === 'Wasabi', 'Name updated to Wasabi');
+  assert(testCat.weightMultiplier === 0.88, 'Weight multiplier updated to 0.88');
+  assert(testCat.jumpMultiplier === 1.16, 'Jump multiplier updated to 1.16');
+}
+
 console.log('\n🎉 ALL GAMEPLAY SIMULATION TESTS PASSED!\n');

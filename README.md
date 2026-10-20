@@ -29,6 +29,20 @@
 
 ## ⚡ Features
 
+### 🐾 4 Fighter Archetypes & Character Selection Screen
+- **Authentic 90s Character Select Grid**: Choose your fighter before every duel with live animated pixel-art previews, breed lore, and stat radar bars (**SPEED ⚡**, **WEIGHT ⚖️**, **JUMP 🐾**).
+- **Asymmetrical Weight & Mobility Archetypes**:
+  - **Mochi (The Balanced Sumo)**: Ginger Tabby. Standard mass (1.00x), balanced jump, and reliable sumo knockback fundamentals.
+  - **Kuro (The Shadow Shinobi)**: Black Tuxedo. Fast ground mobility (1.16x waddle speed) and rapid ring repositioning.
+  - **Boris (Yokozuna Chonk)**: British Blue. Immense mass (1.25x) provides ~20% knockback resistance against incoming pounces; heavier ground presence with 0.84x waddle speed.
+  - **Wasabi (The Flying Acrobat)**: Calico Bobtail. Soaring leap altitude (1.16x jump multiplier, ~208px peak) for steep, punishing aerial pounces.
+- **Strict Competitive Safeguards**: All fighters adhere to a zero-sum attribute budget ($\pm 15\text{--}20\%$ corridor) and clear the 52px vaulting jump threshold ($>120\text{px}$ clearance).
+
+### 🏆 Post-Match Battle Stats & Cinematic KO Cam
+- **Cinematic KO Cam**: Final match-winning ring-outs trigger 0.35x slow-motion pacing, screen shutter flash, and a comic `★ K.O. ★` freeze-frame banner.
+- **Head-to-Head Match Stats Screen**: Comprehensive recap tracking **Bumps Landed**, **Mega Bonks**, **Defensive Parries**, **Turbo Punches**, and **Edge Teeter Clutches**.
+- **Dynamic MVP Titles**: Awards fighters custom accolades like *The Parry Sensei*, *Meteor Stomper*, *The Edge Lord*, *Dragon Combo Master*, or *Tournament Yokozuna*.
+
 ### 📱 Progressive Web App (PWA) & Mobile Fullscreen
 - **Installable PWA**: Installable directly on Android, Chrome, and iOS (Safari "Add to Home Screen") as a standalone app.
 - **Offline Capable**: Pre-caches game assets via a custom Service Worker (`sw.js`) with cache-first and stale-while-revalidate strategies.

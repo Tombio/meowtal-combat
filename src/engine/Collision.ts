@@ -73,6 +73,7 @@ export class CollisionEngine {
       const attacker = cat1Parry ? cat2 : cat1;
 
       defender.triggerParrySuccess();
+      defender.combatStats.parriesSuccessful++;
       const isAttackerTurbo = attacker.state === 'TURBO_DASH';
 
       if (isAttackerTurbo) {
@@ -114,6 +115,8 @@ export class CollisionEngine {
       if (cat1Turbo && cat2Turbo) {
         cat1.endTurboAttack();
         cat2.endTurboAttack();
+        cat1.combatStats.turboHitsLanded++;
+        cat2.combatStats.turboHitsLanded++;
         const dir = cat1.x < cat2.x ? -1 : 1;
         cat1.applyKnockback(dir * 9.5, -3.2, 24);
         cat2.applyKnockback(-dir * 9.5, -3.2, 24);
@@ -134,6 +137,7 @@ export class CollisionEngine {
       // One cat lands Turbo Attack on the other: GIGA BONK
       const attacker = cat1Turbo ? cat1 : cat2;
       const victim = cat1Turbo ? cat2 : cat1;
+      attacker.combatStats.turboHitsLanded++;
       const pushDirection = attacker.facing;
 
       victim.applyKnockback(pushDirection * 9.8, -3.4, 28);
@@ -194,6 +198,8 @@ export class CollisionEngine {
 
       cat1.scaleX = 1.15;
       cat2.scaleX = 1.15;
+      cat1.combatStats.bumpsLanded++;
+      cat2.combatStats.bumpsLanded++;
 
       this.sound.playShove();
       return {
@@ -212,6 +218,11 @@ export class CollisionEngine {
     // -----------------------------------------------------------------
     const higherCat = deltaY > 0 ? cat1 : cat2;
     const lowerCat = deltaY > 0 ? cat2 : cat1;
+
+    higherCat.combatStats.bumpsLanded++;
+    if (absDeltaY > 32) {
+      higherCat.combatStats.megaBonks++;
+    }
 
     // Push lower cat away horizontally from higher cat
     const pushDirection = (higherCat.x <= lowerCat.x) ? 1 : -1;
