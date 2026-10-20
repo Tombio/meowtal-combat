@@ -1,4 +1,5 @@
 import { InputManager } from './engine/InputManager';
+import { ComboTracker } from './engine/ComboTracker';
 import { SoundSynthesizer } from './audio/SoundSynthesizer';
 import { Arena } from './entities/Arena';
 import { Cat } from './entities/Cat';
@@ -29,6 +30,12 @@ class CatSumoGame {
   private touchController: TouchController;
   private network: NetworkManager;
   private onlineModal: OnlineModal;
+
+  // Turbo Attack Combo Trackers & Cooldown Chime
+  private p1Combo: ComboTracker;
+  private p2Combo: ComboTracker;
+  private prevP1Cooldown: number = 0;
+  private prevP2Cooldown: number = 0;
 
   private isRunning: boolean = true;
   private lastTime: number = 0;
@@ -78,6 +85,9 @@ class CatSumoGame {
     this.touchController = new TouchController(this.input);
     this.network = new NetworkManager();
     this.onlineModal = new OnlineModal(this.network, () => this.handleOnlineGameStart());
+
+    this.p1Combo = new ComboTracker('p1', this.input);
+    this.p2Combo = new ComboTracker('p2', this.input);
 
     // When opponent leaves, host returns to lobby and resets match to title
     this.onlineModal.onOpponentLeft = () => {
@@ -345,6 +355,12 @@ class CatSumoGame {
         this.input.setVirtualAction('p2', 'left', packet.left);
         this.input.setVirtualAction('p2', 'right', packet.right);
         this.input.setVirtualAction('p2', 'jump', packet.jump);
+
+        if (packet.turbo && this.p2.canTurboAttack()) {
+          const dir = (this.p1.x >= this.p2.x) ? 1 : -1;
+          this.p2.startTurboAttack(dir);
+          this.sound.playTurboDash();
+        }
       }
     };
 
@@ -378,6 +394,7 @@ class CatSumoGame {
         this.p1.facing = state.p1.facing as any;
         if (state.p1.scaleX !== undefined) this.p1.scaleX = state.p1.scaleX;
         if (state.p1.scaleY !== undefined) this.p1.scaleY = state.p1.scaleY;
+        if (state.p1.turboCooldown !== undefined) this.p1.turboCooldown = state.p1.turboCooldown;
 
         // 2. P2 (Guest Cat with Client-Side Prediction):
         // If Host reports combat knockback / DAZED, RING_OUT, or CELEBRATING, accept Host's authoritative state immediately!
@@ -426,6 +443,9 @@ class CatSumoGame {
 
         if (state.p2.scaleX !== undefined) this.p2.scaleX = state.p2.scaleX;
         if (state.p2.scaleY !== undefined) this.p2.scaleY = state.p2.scaleY;
+        if (state.p2.turboCooldown !== undefined && (this.p2.turboCooldown === 0 || state.p2.turboCooldown > 0)) {
+          this.p2.turboCooldown = state.p2.turboCooldown;
+        }
 
         this.p1.roundsWon = state.p1Wins;
         this.p2.roundsWon = state.p2Wins;
@@ -482,25 +502,33 @@ class CatSumoGame {
     if (!bump || bump.id <= this.lastProcessedBumpId) return;
     this.lastProcessedBumpId = bump.id;
 
-    // Render comic text popup and screen shake on the guest
-    this.effects.addComicPopup(bump.comicText, bump.contactX, bump.contactY, bump.isMega);
-    this.effects.triggerScreenShake(bump.shakeMagnitude);
-    this.effects.addDust(bump.contactX, bump.contactY + 20, bump.isMega ? 10 : 5);
+    const isMega = bump.isMega;
+    const isGiga = !!bump.isGiga;
 
-    if (bump.heightDelta > 15) {
-      this.effects.triggerHitStop(bump.isMega ? 3 : 1);
+    // Render comic text popup and screen shake on the guest
+    this.effects.addComicPopup(bump.comicText, bump.contactX, bump.contactY, isMega, isGiga);
+    this.effects.triggerScreenShake(bump.shakeMagnitude);
+    this.effects.addDust(bump.contactX, bump.contactY + 20, isGiga ? 12 : (isMega ? 10 : 5));
+
+    if (isGiga) {
+      this.effects.triggerHitStop(5);
+      this.sound.playGigaBonk();
+    } else if (bump.heightDelta > 15) {
+      this.effects.triggerHitStop(isMega ? 3 : 1);
     }
 
     // Play synchronized bump sound
-    if (bump.heightDelta > 9) {
-      this.sound.playBonk(bump.heightDelta);
-      if (bump.heightDelta > 22) {
-        setTimeout(() => {
-          this.sound.playMeow(1.0);
-        }, 70);
+    if (!isGiga) {
+      if (bump.heightDelta > 9) {
+        this.sound.playBonk(bump.heightDelta);
+        if (bump.heightDelta > 22) {
+          setTimeout(() => {
+            this.sound.playMeow(1.0);
+          }, 70);
+        }
+      } else {
+        this.sound.playShove();
       }
-    } else {
-      this.sound.playShove();
     }
   }
 
@@ -522,6 +550,7 @@ class CatSumoGame {
         facing: this.p1.facing,
         scaleX: this.p1.scaleX,
         scaleY: this.p1.scaleY,
+        turboCooldown: this.p1.turboCooldown,
       },
       p2: {
         x: this.p2.x,
@@ -532,6 +561,7 @@ class CatSumoGame {
         facing: this.p2.facing,
         scaleX: this.p2.scaleX,
         scaleY: this.p2.scaleY,
+        turboCooldown: this.p2.turboCooldown,
       },
       matchPhase: this.hud.matchPhase,
       currentRound: this.hud.currentRound,
@@ -564,6 +594,10 @@ class CatSumoGame {
 
   private resetCatsForRound(): void {
     this.hostInputQueue = [];
+    this.p1Combo?.reset();
+    this.p2Combo?.reset();
+    this.prevP1Cooldown = 0;
+    this.prevP2Cooldown = 0;
     const surfaceY = this.arena.config.ringSurfaceY;
     this.p1.resetPosition(300, surfaceY, 1);
     this.p2.resetPosition(604, surfaceY, -1);
@@ -691,6 +725,16 @@ class CatSumoGame {
 
     // Active Fight Phase
     if (this.hud.matchPhase === 'FIGHT') {
+      // Cooldown ready chimes
+      if (this.prevP1Cooldown === 1 && this.p1.turboCooldown === 0) {
+        this.sound.playTurboReady();
+      }
+      if (this.prevP2Cooldown === 1 && this.p2.turboCooldown === 0) {
+        this.sound.playTurboReady();
+      }
+      this.prevP1Cooldown = this.p1.turboCooldown;
+      this.prevP2Cooldown = this.p2.turboCooldown;
+
       const isOnlineGuest = this.network.isConnected() && !this.network.isHost();
 
       // In online guest mode: local prediction for P2 (0ms input lag!)
@@ -700,15 +744,26 @@ class CatSumoGame {
         const jumpHeld = this.input.isDown('p2', 'jump');
         const justJump = this.input.isJustPressed('p2', 'jump');
 
+        // Check P2 combo on guest
+        const p2TriggeredTurbo = this.p2Combo.update(this.p2.x, this.p1.x);
+        let turboFlag = false;
+        if (p2TriggeredTurbo && this.p2.canTurboAttack()) {
+          const dir = (this.p1.x >= this.p2.x) ? 1 : -1;
+          this.p2.startTurboAttack(dir);
+          this.sound.playTurboDash();
+          turboFlag = true;
+        }
+
         this.network.sendInputs({
           seq: this.tickCount++,
           left,
           right,
           jump: jumpHeld,
+          turbo: turboFlag,
         });
 
         // Instant local jump execution
-        if (justJump && this.p2.isGrounded) {
+        if (justJump && this.p2.isGrounded && this.p2.state !== 'TURBO_DASH') {
           this.p2.jump();
           this.sound.playJump();
         }
@@ -766,12 +821,30 @@ class CatSumoGame {
           }
         }
 
+        // Check P1 combo
+        const p1TriggeredTurbo = this.p1Combo.update(this.p1.x, this.p2.x);
+        if (p1TriggeredTurbo && this.p1.canTurboAttack()) {
+          const dir = (this.p2.x >= this.p1.x) ? 1 : -1;
+          this.p1.startTurboAttack(dir);
+          this.sound.playTurboDash();
+        }
+
+        // In local mode, check P2 combo as well
+        if (!this.network.isConnected()) {
+          const p2TriggeredTurbo = this.p2Combo.update(this.p2.x, this.p1.x);
+          if (p2TriggeredTurbo && this.p2.canTurboAttack()) {
+            const dir = (this.p1.x >= this.p2.x) ? 1 : -1;
+            this.p2.startTurboAttack(dir);
+            this.sound.playTurboDash();
+          }
+        }
+
         // Process Jump Inputs
-        if (p1JustJump && this.p1.isGrounded) {
+        if (p1JustJump && this.p1.isGrounded && this.p1.state !== 'TURBO_DASH') {
           this.p1.jump();
           this.sound.playJump();
         }
-        if (this.input.isJustPressed('p2', 'jump') && this.p2.isGrounded) {
+        if (this.input.isJustPressed('p2', 'jump') && this.p2.isGrounded && this.p2.state !== 'TURBO_DASH') {
           this.p2.jump();
           this.sound.playJump();
         }
@@ -807,9 +880,12 @@ class CatSumoGame {
         const bumpEvent = this.collisionEngine.checkAndResolveCats(this.p1, this.p2);
         if (bumpEvent) {
           const isMega = bumpEvent.heightDelta > 26;
-          this.effects.addComicPopup(bumpEvent.comicText, bumpEvent.contactX, bumpEvent.contactY - 20, isMega);
+          const isGiga = !!bumpEvent.isGiga;
+          this.effects.addComicPopup(bumpEvent.comicText, bumpEvent.contactX, bumpEvent.contactY - 20, isMega, isGiga);
           this.effects.triggerScreenShake(bumpEvent.shakeMagnitude);
-          if (bumpEvent.heightDelta > 15) {
+          if (isGiga) {
+            this.effects.triggerHitStop(5);
+          } else if (bumpEvent.heightDelta > 15) {
             this.effects.triggerHitStop(isMega ? 3 : 1);
           }
 
@@ -822,6 +898,7 @@ class CatSumoGame {
               contactX: bumpEvent.contactX,
               contactY: bumpEvent.contactY - 20,
               isMega,
+              isGiga,
               shakeMagnitude: bumpEvent.shakeMagnitude,
               heightDelta: bumpEvent.heightDelta,
             };

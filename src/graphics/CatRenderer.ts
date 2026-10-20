@@ -2,6 +2,27 @@ import { Cat } from '../entities/Cat';
 
 export class CatRenderer {
   public draw(ctx: CanvasRenderingContext2D, cat: Cat): void {
+    // 0. Draw afterimages (motion blur trail)
+    if (cat.afterimages.length > 0) {
+      for (const img of cat.afterimages) {
+        ctx.save();
+        ctx.globalAlpha = Math.max(img.alpha * 0.45, 0);
+        const imgCenterX = img.x + cat.width / 2;
+        const imgBottomY = img.y + cat.height;
+        ctx.translate(imgCenterX, imgBottomY);
+        ctx.scale(img.scaleX * img.facing, img.scaleY);
+        ctx.fillStyle = cat.breed === 'ginger_tabby' ? '#ff9d2e' : '#4a3b69';
+        // Silhouette body
+        ctx.beginPath();
+        ctx.ellipse(0, -24, 26, 22, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(0, -40, 16, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
     ctx.save();
 
     // Center transform for squash and stretch
@@ -318,6 +339,56 @@ export class CatRenderer {
     if (cat.state === 'TEETER') {
       this.drawSweatDrops(ctx, centerX, cat.y - 8, cat.animTimer);
     }
+
+    // 12. Turbo Attack Cooldown Progress Indicator
+    if (cat.turboCooldown > 0 && cat.state !== 'RING_OUT') {
+      this.drawCooldownMeter(ctx, centerX, cat.y - 14, cat.turboCooldown, cat.maxTurboCooldown, cat.animTimer);
+    }
+  }
+
+  private drawCooldownMeter(
+    ctx: CanvasRenderingContext2D,
+    cx: number,
+    cy: number,
+    cooldown: number,
+    maxCooldown: number,
+    timer: number
+  ): void {
+    const width = 28;
+    const height = 4;
+    const x = Math.round(cx - width / 2);
+    const y = Math.round(cy);
+    const progress = Math.max(0, Math.min(1, 1 - (cooldown / maxCooldown)));
+
+    ctx.save();
+    // Bezel background
+    ctx.fillStyle = 'rgba(10, 6, 18, 0.85)';
+    ctx.fillRect(x - 1, y - 1, width + 2, height + 2);
+
+    // Bezel border
+    const isNearlyReady = progress > 0.85;
+    ctx.strokeStyle = isNearlyReady && (timer % 8 < 4) ? '#00ffff' : '#5c2d91';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x - 1, y - 1, width + 2, height + 2);
+
+    // Dynamic gradient fill: fiery red-orange -> gold -> neon cyan
+    const fillWidth = Math.floor(width * progress);
+    if (fillWidth > 0) {
+      const grad = ctx.createLinearGradient(x, y, x + width, y);
+      grad.addColorStop(0, '#ff3d00');
+      grad.addColorStop(0.5, '#ffc400');
+      grad.addColorStop(1, '#00e5ff');
+
+      ctx.fillStyle = grad;
+      ctx.fillRect(x, y, fillWidth, height);
+    }
+
+    // Mini lightning symbol
+    ctx.fillStyle = isNearlyReady ? '#00ffff' : '#ffea00';
+    ctx.font = '8px monospace';
+    ctx.fillText('⚡', x - 9, y + 4);
+
+    ctx.restore();
   }
 
   private drawDizzyStars(ctx: CanvasRenderingContext2D, cx: number, cy: number, timer: number): void {

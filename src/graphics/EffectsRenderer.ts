@@ -34,15 +34,25 @@ export class EffectsRenderer {
     this.hitStopFrames = Math.max(this.hitStopFrames, frames);
   }
 
-  public addComicPopup(text: string, x: number, y: number, isMega: boolean): void {
+  public addComicPopup(text: string, x: number, y: number, isMega: boolean, isGiga: boolean = false): void {
+    let scale = 1.0;
+    let color = '#ffea00';
+    if (isGiga) {
+      scale = 1.6;
+      color = '#00e5ff';
+    } else if (isMega) {
+      scale = 1.35;
+      color = '#ff0055';
+    }
+
     this.popups.push({
       text,
       x,
       y,
       life: 0,
-      maxLife: 45,
-      scale: isMega ? 1.4 : 1.0,
-      color: isMega ? '#ff0055' : '#ffea00',
+      maxLife: isGiga ? 55 : 45,
+      scale,
+      color,
     });
   }
 

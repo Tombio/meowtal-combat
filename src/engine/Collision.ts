@@ -9,6 +9,7 @@ export interface BumpEvent {
   contactY: number;
   comicText: string;
   shakeMagnitude: number;
+  isGiga?: boolean;
 }
 
 export class CollisionEngine {
@@ -46,13 +47,69 @@ export class CollisionEngine {
       return null;
     }
 
+    const contactX = (Math.max(box1.x, box2.x) + Math.min(box1.x + box1.width, box2.x + box2.width)) / 2;
+    const contactY = (Math.max(box1.y, box2.y) + Math.min(box1.y + box1.height, box2.y + box2.height)) / 2;
+
+    // -------------------------------------------------------------
+    // TURBO ATTACK IMPACT: GIGA BONK!
+    // -------------------------------------------------------------
+    const cat1Turbo = cat1.state === 'TURBO_DASH';
+    const cat2Turbo = cat2.state === 'TURBO_DASH';
+
+    if (cat1Turbo || cat2Turbo) {
+      this.lastCollisionTime = now;
+
+      // Both cats clashed with Turbo Attack
+      if (cat1Turbo && cat2Turbo) {
+        cat1.endTurboAttack();
+        cat2.endTurboAttack();
+        const dir = cat1.x < cat2.x ? -1 : 1;
+        cat1.applyKnockback(dir * 9.5, -3.2, 24);
+        cat2.applyKnockback(-dir * 9.5, -3.2, 24);
+        this.sound.playGigaBonk();
+
+        return {
+          higherCat: cat1,
+          lowerCat: cat2,
+          heightDelta: 999,
+          contactX,
+          contactY,
+          comicText: '⚡ SUPER CLASH! ⚡',
+          shakeMagnitude: 18,
+          isGiga: true,
+        };
+      }
+
+      // One cat lands Turbo Attack on the other: GIGA BONK
+      const attacker = cat1Turbo ? cat1 : cat2;
+      const victim = cat1Turbo ? cat2 : cat1;
+      const pushDirection = attacker.facing;
+
+      victim.applyKnockback(pushDirection * 9.8, -3.4, 28);
+      attacker.endTurboAttack();
+      attacker.vx = -pushDirection * 2.0; // slight recoil for attacker
+
+      this.sound.playGigaBonk();
+      setTimeout(() => {
+        this.sound.playMeow(victim.breed === 'ginger_tabby' ? 1.1 : 0.9);
+      }, 70);
+
+      return {
+        higherCat: attacker,
+        lowerCat: victim,
+        heightDelta: 999,
+        contactX,
+        contactY,
+        comicText: '💥 GIGA BONK! 💥',
+        shakeMagnitude: 16,
+        isGiga: true,
+      };
+    }
+
     // Calculate height difference: lower Y on screen means higher in the air
     // deltaY > 0 means cat1 is higher; deltaY < 0 means cat2 is higher
     const deltaY = cat2.y - cat1.y;
     const absDeltaY = Math.abs(deltaY);
-
-    const contactX = (Math.max(box1.x, box2.x) + Math.min(box1.x + box1.width, box2.x + box2.width)) / 2;
-    const contactY = (Math.max(box1.y, box2.y) + Math.min(box1.y + box1.height, box2.y + box2.height)) / 2;
 
     const HEIGHT_ADVANTAGE_THRESHOLD = 9; // pixels
 

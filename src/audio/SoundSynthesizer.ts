@@ -353,4 +353,155 @@ export class SoundSynthesizer {
       osc.stop(startTime + dur + 0.05);
     });
   }
+
+  /**
+   * Turbo Attack Charge / Dragon Punch Swoosh
+   */
+  public playTurboDash(): void {
+    if (this.isMuted) return;
+    const ctx = this.initContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+
+    // 1. Tonal rising charge sweep
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(180, now);
+    osc.frequency.exponentialRampToValueAtTime(680, now + 0.22);
+
+    gain.gain.setValueAtTime(0.28, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.25);
+
+    // 2. Filtered whoosh noise
+    const bufferSize = Math.floor(ctx.sampleRate * 0.22);
+    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      output[i] = Math.random() * 2 - 1;
+    }
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuffer;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(700, now);
+    filter.frequency.exponentialRampToValueAtTime(2600, now + 0.18);
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.32, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+
+    noise.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+
+    noise.start(now);
+    noise.stop(now + 0.23);
+  }
+
+  /**
+   * Devastating GIGA BONK impact
+   */
+  public playGigaBonk(): void {
+    if (this.isMuted) return;
+    const ctx = this.initContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+
+    // 1. Deep Sub-Bass Explosion (80Hz down to 28Hz)
+    const subOsc = ctx.createOscillator();
+    const subGain = ctx.createGain();
+    subOsc.type = 'sine';
+    subOsc.frequency.setValueAtTime(95, now);
+    subOsc.frequency.exponentialRampToValueAtTime(28, now + 0.38);
+
+    subGain.gain.setValueAtTime(0.65, now);
+    subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+
+    subOsc.connect(subGain);
+    subGain.connect(ctx.destination);
+    subOsc.start(now);
+    subOsc.stop(now + 0.48);
+
+    // 2. High-impact distorted crunch
+    const crunchOsc = ctx.createOscillator();
+    const crunchGain = ctx.createGain();
+    crunchOsc.type = 'sawtooth';
+    crunchOsc.frequency.setValueAtTime(320, now);
+    crunchOsc.frequency.exponentialRampToValueAtTime(50, now + 0.2);
+
+    crunchGain.gain.setValueAtTime(0.4, now);
+    crunchGain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+    crunchOsc.connect(crunchGain);
+    crunchGain.connect(ctx.destination);
+    crunchOsc.start(now);
+    crunchOsc.stop(now + 0.26);
+
+    // 3. Noise crash
+    const bufferSize = Math.floor(ctx.sampleRate * 0.28);
+    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      output[i] = Math.random() * 2 - 1;
+    }
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuffer;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(2400, now);
+    filter.frequency.exponentialRampToValueAtTime(100, now + 0.22);
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.48, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+
+    noise.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+
+    noise.start(now);
+    noise.stop(now + 0.29);
+  }
+
+  /**
+   * Retro dual chime when Turbo Attack finishes cooldown
+   */
+  public playTurboReady(): void {
+    if (this.isMuted) return;
+    const ctx = this.initContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const tones = [880, 1320];
+    const times = [0, 0.08];
+
+    tones.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const t = now + times[idx];
+
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(freq, t);
+
+      gain.gain.setValueAtTime(0.12, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.11);
+    });
+  }
 }

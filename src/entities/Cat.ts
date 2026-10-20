@@ -9,7 +9,17 @@ export type CatState =
   | 'DAZED' 
   | 'TEETER' 
   | 'RING_OUT' 
-  | 'CELEBRATING';
+  | 'CELEBRATING'
+  | 'TURBO_DASH';
+
+export interface Afterimage {
+  x: number;
+  y: number;
+  facing: 1 | -1;
+  alpha: number;
+  scaleX: number;
+  scaleY: number;
+}
 
 export interface CatConfig {
   id: PlayerId;
@@ -53,6 +63,14 @@ export class Cat {
   public isHoldingJump: boolean = false;
   public hasJumpedThisPress: boolean = false;
 
+  // Turbo Attack & Cooldown
+  public turboCooldown: number = 0;
+  public readonly maxTurboCooldown: number = 240; // 4 seconds at 60 FPS
+  public turboDashTimer: number = 0;
+  public turboDashDirection: 1 | -1 = 1;
+  public readonly turboDashSpeed: number = 10.67; // ~160px reach across 15 frames (~27.5% of Dohyo)
+  public afterimages: Afterimage[] = [];
+
   constructor(config: CatConfig, ringSurfaceY: number) {
     this.id = config.id;
     this.name = config.name;
@@ -75,6 +93,39 @@ export class Cat {
     this.scaleY = 1;
     this.teeterSide = null;
     this.hasJumpedThisPress = false;
+    this.turboCooldown = 0;
+    this.turboDashTimer = 0;
+    this.afterimages = [];
+  }
+
+  public canTurboAttack(): boolean {
+    return this.turboCooldown === 0 &&
+      this.state !== 'DAZED' &&
+      this.state !== 'RING_OUT' &&
+      this.state !== 'TURBO_DASH' &&
+      this.state !== 'CELEBRATING';
+  }
+
+  public startTurboAttack(direction: 1 | -1): void {
+    this.state = 'TURBO_DASH';
+    this.turboDashTimer = 15;
+    this.turboDashDirection = direction;
+    this.facing = direction;
+    this.scaleX = 1.45;
+    this.scaleY = 0.7;
+    this.vx = direction * this.turboDashSpeed;
+    this.vy = 0;
+    this.dustParticlesToSpawn = 6;
+  }
+
+  public endTurboAttack(): void {
+    if (this.state === 'TURBO_DASH') {
+      this.state = this.isGrounded ? 'IDLE' : 'JUMP_FALL';
+      this.turboDashTimer = 0;
+      this.turboCooldown = this.maxTurboCooldown;
+      this.scaleX = 0.9;
+      this.scaleY = 1.1;
+    }
   }
 
   public jump(): void {
@@ -126,6 +177,14 @@ export class Cat {
     // Squash & Stretch Spring recovery
     this.scaleX += (1.0 - this.scaleX) * 0.15;
     this.scaleY += (1.0 - this.scaleY) * 0.15;
+
+    // Fade lingering afterimages
+    for (let i = this.afterimages.length - 1; i >= 0; i--) {
+      this.afterimages[i].alpha -= 0.08;
+      if (this.afterimages[i].alpha <= 0) {
+        this.afterimages.splice(i, 1);
+      }
+    }
   }
 
   public updatePhysics(
@@ -136,6 +195,11 @@ export class Cat {
     otherCatX: number
   ): void {
     this.updateAnimation(inputJumpHeld);
+
+    // Cooldown countdown
+    if (this.turboCooldown > 0) {
+      this.turboCooldown--;
+    }
 
     // Handle Ring Out state
     if (this.state === 'RING_OUT') {
@@ -162,6 +226,36 @@ export class Cat {
       return;
     }
 
+    // Handle Active Turbo Dash
+    if (this.state === 'TURBO_DASH') {
+      // Record afterimage for motion blur
+      if (this.turboDashTimer % 2 === 0) {
+        this.afterimages.push({
+          x: this.x,
+          y: this.y,
+          facing: this.facing,
+          alpha: 0.7,
+          scaleX: this.scaleX,
+          scaleY: this.scaleY,
+        });
+      }
+
+      this.vx = this.turboDashDirection * this.turboDashSpeed;
+      this.vy = 0; // Aerodynamic dash
+      this.x += this.vx;
+
+      const isAboveRingHorizontally = arena.isOnPlatform(this.x, this.width);
+      if (!isAboveRingHorizontally) {
+        this.isGrounded = false;
+      }
+
+      this.turboDashTimer--;
+      if (this.turboDashTimer <= 0) {
+        this.endTurboAttack();
+      }
+      return;
+    }
+
     // Handle Daze Timer
     if (this.dazeTimer > 0) {
       this.dazeTimer--;
@@ -169,9 +263,10 @@ export class Cat {
       // Balanced sliding friction while dazed
       this.vx *= 0.89;
     } else {
-      // Player Movement controls (only when not dazed)
-      const accel = this.isGrounded ? 0.72 : 0.45;
-      const maxSpeed = 4.4;
+      // Player Movement controls (reduced to 50% speed during cooldown)
+      const speedMultiplier = this.turboCooldown > 0 ? 0.5 : 1.0;
+      const accel = (this.isGrounded ? 0.72 : 0.45) * speedMultiplier;
+      const maxSpeed = 4.4 * speedMultiplier;
 
       if (inputLeft) {
         this.vx -= accel;

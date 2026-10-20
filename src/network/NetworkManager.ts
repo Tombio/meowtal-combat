@@ -10,6 +10,7 @@ export interface PlayerInputPacket {
   left: boolean;
   right: boolean;
   jump: boolean;
+  turbo?: boolean;
 }
 
 export interface BumpEventPacket {
@@ -18,14 +19,35 @@ export interface BumpEventPacket {
   contactX: number;
   contactY: number;
   isMega: boolean;
+  isGiga?: boolean;
   shakeMagnitude: number;
   heightDelta: number;
 }
 
 export interface NetworkStateSnapshot {
   tick: number;
-  p1: { x: number; y: number; vx: number; vy: number; state: string; facing: number; scaleX?: number; scaleY?: number };
-  p2: { x: number; y: number; vx: number; vy: number; state: string; facing: number; scaleX?: number; scaleY?: number };
+  p1: {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    state: string;
+    facing: number;
+    scaleX?: number;
+    scaleY?: number;
+    turboCooldown?: number;
+  };
+  p2: {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    state: string;
+    facing: number;
+    scaleX?: number;
+    scaleY?: number;
+    turboCooldown?: number;
+  };
   matchPhase: string;
   currentRound: number;
   phaseTimer: number;

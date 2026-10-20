@@ -3,6 +3,7 @@ import { Cat } from '../src/entities/Cat';
 import { CollisionEngine } from '../src/engine/Collision';
 import { SoundSynthesizer } from '../src/audio/SoundSynthesizer';
 import { InputManager } from '../src/engine/InputManager';
+import { ComboTracker } from '../src/engine/ComboTracker';
 import { NetworkManager } from '../src/network/NetworkManager';
 import { ArcadeHUD } from '../src/ui/ArcadeHUD';
 
@@ -420,5 +421,214 @@ assert(arcadeHud.matchPhase === 'ROUND_OVER', 'Enters ROUND_OVER when cat knocke
 for (let f = 0; f < 145; f++) arcadeHud.update();
 assert(arcadeHud.matchPhase === 'ROUND_READY', 'Next round transitions to ROUND_READY');
 assert(!arcadeHud.p1Ready && !arcadeHud.p2Ready, 'Next round requires both players to ready up again');
+
+console.log('\n--- 14. Testing Turbo Attack (Dragon Punch), Combo Detection, Cooldown & Giga Bonk ---');
+
+// 14a: Combo Detection (Back-Back-Forward relative to opponent)
+const turboInput = new InputManager();
+const p1Combo = new ComboTracker('p1', turboInput);
+
+// P1 at 300, P2 at 600: opponent is to the right.
+// Back = Left, Forward = Right. Combo: Left -> Left -> Right
+let triggered = false;
+
+// Step 1: Left tap
+turboInput.setVirtualAction('p1', 'left', true);
+triggered = p1Combo.update(300, 600);
+assert(!triggered, 'First BACK press does not trigger combo prematurely');
+turboInput.update();
+turboInput.setVirtualAction('p1', 'left', false);
+
+// Wait 4 frames
+for (let f = 0; f < 4; f++) {
+  p1Combo.update(300, 600);
+  turboInput.update();
+}
+
+// Step 2: Left tap
+turboInput.setVirtualAction('p1', 'left', true);
+triggered = p1Combo.update(300, 600);
+assert(!triggered, 'Second BACK press does not trigger combo prematurely');
+turboInput.update();
+turboInput.setVirtualAction('p1', 'left', false);
+
+// Wait 4 frames
+for (let f = 0; f < 4; f++) {
+  p1Combo.update(300, 600);
+  turboInput.update();
+}
+
+// Step 3: Right tap (FORWARD)
+turboInput.setVirtualAction('p1', 'right', true);
+triggered = p1Combo.update(300, 600);
+assert(triggered, 'Left-Left-Right combo triggers Turbo Attack when opponent is to the right');
+turboInput.update();
+turboInput.setVirtualAction('p1', 'right', false);
+
+// Opponent is to the left: P1 at 600, P2 at 300.
+// Back = Right, Forward = Left. Combo: Right -> Right -> Left
+p1Combo.reset();
+turboInput.setVirtualAction('p1', 'right', true);
+p1Combo.update(600, 300);
+turboInput.update();
+turboInput.setVirtualAction('p1', 'right', false);
+
+for (let f = 0; f < 3; f++) { p1Combo.update(600, 300); turboInput.update(); }
+
+turboInput.setVirtualAction('p1', 'right', true);
+p1Combo.update(600, 300);
+turboInput.update();
+turboInput.setVirtualAction('p1', 'right', false);
+
+for (let f = 0; f < 3; f++) { p1Combo.update(600, 300); turboInput.update(); }
+
+turboInput.setVirtualAction('p1', 'left', true);
+triggered = p1Combo.update(600, 300);
+assert(triggered, 'Right-Right-Left combo triggers Turbo Attack when opponent is to the left');
+turboInput.update();
+turboInput.setVirtualAction('p1', 'left', false);
+
+// Timeout test: > 20 frames delay between taps resets combo
+p1Combo.reset();
+turboInput.setVirtualAction('p1', 'left', true);
+p1Combo.update(300, 600);
+turboInput.update();
+turboInput.setVirtualAction('p1', 'left', false);
+
+// Wait 25 frames (exceeding MAX_INTERVAL_FRAMES = 20)
+for (let f = 0; f < 25; f++) {
+  p1Combo.update(300, 600);
+  turboInput.update();
+}
+
+// Tap second left
+turboInput.setVirtualAction('p1', 'left', true);
+p1Combo.update(300, 600);
+turboInput.update();
+turboInput.setVirtualAction('p1', 'left', false);
+
+// Tap forward right
+turboInput.setVirtualAction('p1', 'right', true);
+triggered = p1Combo.update(300, 600);
+assert(!triggered, 'Exceeding 20-frame buffer interval safely resets combo');
+turboInput.update();
+turboInput.setVirtualAction('p1', 'right', false);
+
+// 14b: Reach & Distance (25% - 30% of platform length)
+const turboCat = new Cat({ id: 'p1', name: 'Mochi', breed: 'ginger_tabby', initialX: 300, initialFacing: 1 }, arena.config.ringSurfaceY);
+assert(turboCat.canTurboAttack(), 'Fresh cat can perform Turbo Attack');
+
+const startX = turboCat.x;
+turboCat.startTurboAttack(1);
+assert(turboCat.state === 'TURBO_DASH', 'Cat state transitions to TURBO_DASH');
+assert(turboCat.scaleX === 1.45, 'Cat stretches horizontally during dash');
+
+for (let f = 0; f < 15; f++) {
+  turboCat.updatePhysics(arena, false, false, false, 600);
+}
+
+const distanceCovered = turboCat.x - startX;
+const platformLength = arena.config.ringRight - arena.config.ringLeft; // 580px
+const reachPercentage = (distanceCovered / platformLength) * 100;
+console.log(`Turbo Dash covered: ${distanceCovered.toFixed(1)}px (${reachPercentage.toFixed(1)}% of Dohyo length)`);
+
+assert(distanceCovered >= 155 && distanceCovered <= 165, `Dash covered ~160px (got ${distanceCovered.toFixed(1)}px)`);
+assert(reachPercentage >= 25 && reachPercentage <= 30, `Dash reach is 25%-30% of platform (got ${reachPercentage.toFixed(1)}%)`);
+assert(turboCat.state === 'IDLE', 'Cat returns to IDLE after dash completes');
+assert(turboCat.turboCooldown === 240, 'Cat enters 4-second (240 frames) cooldown');
+assert(!turboCat.canTurboAttack(), 'Cat cannot trigger Turbo Attack while on cooldown');
+
+// 14c: Airborne Turbo Dash
+const airCat = new Cat({ id: 'p1', name: 'Mochi', breed: 'ginger_tabby', initialX: 300, initialFacing: 1 }, arena.config.ringSurfaceY);
+airCat.jump();
+for (let f = 0; f < 5; f++) airCat.updatePhysics(arena, false, false, true, 600);
+assert(!airCat.isGrounded, 'Cat is airborne');
+const airY = airCat.y;
+
+airCat.startTurboAttack(1);
+assert(airCat.state === 'TURBO_DASH', 'Airborne cat successfully enters TURBO_DASH');
+
+for (let f = 0; f < 15; f++) {
+  airCat.updatePhysics(arena, false, false, false, 600);
+  assert(airCat.y === airY, 'Airborne Turbo Dash maintains level horizontal flight');
+}
+assert(airCat.state === 'JUMP_FALL', 'Airborne cat transitions to JUMP_FALL after dash completes in mid-air');
+
+// 14d: Jumping Dodgability Test
+const rusher = new Cat({ id: 'p1', name: 'Mochi', breed: 'ginger_tabby', initialX: 300, initialFacing: 1 }, arena.config.ringSurfaceY);
+const dodger = new Cat({ id: 'p2', name: 'Kuro', breed: 'black_tuxedo', initialX: 430, initialFacing: -1 }, arena.config.ringSurfaceY);
+
+rusher.startTurboAttack(1);
+let dodgedSuccessfully = false;
+
+for (let f = 0; f < 15; f++) {
+  if (f === 2) {
+    dodger.jump(); // Dodger reacts to the charge on frame 2
+  }
+  rusher.updatePhysics(arena, false, false, false, dodger.x);
+  dodger.updatePhysics(arena, false, false, true, rusher.x);
+
+  const bump = collision.checkAndResolveCats(rusher, dodger);
+  if (rusher.x > dodger.x && dodger.isGrounded === false) {
+    dodgedSuccessfully = (bump === null);
+  }
+}
+assert(dodgedSuccessfully, 'Attentive opponent can dodge Turbo Attack by jumping over the charging cat');
+
+// 14e: Giga Bonk Impact on Direct Hit
+collision.resetCooldown();
+const attacker = new Cat({ id: 'p1', name: 'Mochi', breed: 'ginger_tabby', initialX: 370, initialFacing: 1 }, arena.config.ringSurfaceY);
+const victimCat = new Cat({ id: 'p2', name: 'Kuro', breed: 'black_tuxedo', initialX: 410, initialFacing: -1 }, arena.config.ringSurfaceY);
+
+attacker.startTurboAttack(1);
+const gigaBump = collision.checkAndResolveCats(attacker, victimCat);
+
+assert(gigaBump !== null, 'Collision detected on direct hit');
+assert(gigaBump?.comicText === '💥 GIGA BONK! 💥', 'Collision triggers 💥 GIGA BONK! 💥 comic text');
+assert(gigaBump?.isGiga === true, 'BumpEvent is marked as isGiga');
+assert(gigaBump?.shakeMagnitude === 16, 'Giga Bonk triggers massive magnitude 16 screen shake');
+assert(victimCat.state === 'DAZED', 'Victim enters DAZED state');
+assert(victimCat.vx >= 9.8, `Victim launched with powerful knockback (${victimCat.vx.toFixed(2)} px/frame)`);
+assert(victimCat.dazeTimer === 28, 'Victim receives 28 daze stun frames');
+assert(attacker.state !== 'TURBO_DASH', 'Attacker dash immediately halts on impact');
+assert(attacker.turboCooldown === 240, 'Attacker begins 4-second cooldown');
+
+// 14f: Super Clash when both cats Turbo Dash into each other
+collision.resetCooldown();
+const clash1 = new Cat({ id: 'p1', name: 'Mochi', breed: 'ginger_tabby', initialX: 380, initialFacing: 1 }, arena.config.ringSurfaceY);
+const clash2 = new Cat({ id: 'p2', name: 'Kuro', breed: 'black_tuxedo', initialX: 410, initialFacing: -1 }, arena.config.ringSurfaceY);
+
+clash1.startTurboAttack(1);
+clash2.startTurboAttack(-1);
+
+const clashBump = collision.checkAndResolveCats(clash1, clash2);
+assert(clashBump !== null, 'Clash detected when both cats dash');
+assert(clashBump?.comicText === '⚡ SUPER CLASH! ⚡', 'Simultaneous turbo charge triggers ⚡ SUPER CLASH! ⚡');
+assert(clash1.vx < 0 && clash2.vx > 0, 'Both cats blasted backwards in opposite directions');
+assert(clash1.state !== 'TURBO_DASH' && clash2.state !== 'TURBO_DASH', 'Both cats exit TURBO_DASH');
+
+// 14g: Cooldown Speed Penalty (50% normal movement speed)
+const slowCat = new Cat({ id: 'p1', name: 'Mochi', breed: 'ginger_tabby', initialX: 300, initialFacing: 1 }, arena.config.ringSurfaceY);
+slowCat.turboCooldown = 240;
+
+// Walk right for 10 frames during cooldown
+for (let f = 0; f < 10; f++) {
+  slowCat.updatePhysics(arena, false, true, false, 600);
+}
+console.log(`Max speed achieved during cooldown: ${slowCat.vx.toFixed(2)} px/frame (Normal max is 4.40)`);
+assert(slowCat.vx <= 2.21, `Speed during cooldown is capped at half speed (got ${slowCat.vx.toFixed(2)} px/frame <= 2.20)`);
+
+// Simulate remaining cooldown frames
+while (slowCat.turboCooldown > 0) {
+  slowCat.updatePhysics(arena, false, false, false, 600);
+}
+assert(slowCat.turboCooldown === 0, 'Cooldown reaches 0');
+assert(slowCat.canTurboAttack(), 'Turbo Attack is available again after cooldown');
+
+// Walk right after cooldown expired
+for (let f = 0; f < 10; f++) {
+  slowCat.updatePhysics(arena, false, true, false, 600);
+}
+assert(slowCat.vx > 3.0, `Full speed restored after cooldown (${slowCat.vx.toFixed(2)} px/frame)`);
 
 console.log('\n🎉 ALL GAMEPLAY SIMULATION TESTS PASSED!\n');

@@ -40,6 +40,14 @@
 - **Jump-Over Clearance**: Leap altitude is tuned to allow vaulting cleanly over an opponent to switch sides and evade ring-outs.
 - **Dohyo Ring-Out Detection**: Push your opponent off the platform into the pit to take the round. Best 3 out of 5 rounds wins the tournament.
 
+### ⚡ Turbo Attack & Giga Bonk
+- **Dragon Punch Command Combo**: Tap **Back → Back → Forward** relative to your opponent's position within a 666ms window (20 frames per step) to launch a high-speed charge across ~160px (27.5% of the Dohyo).
+- **Airborne Charge**: Works both grounded and in mid-air with aerodynamic horizontal levitation!
+- **Jump Evasion Counterplay**: The punch is swift, but tuned so an attentive opponent who jumps can cleanly vault over the charging cat to evade ring-out.
+- **💥 GIGA BONK! 💥**: Direct impact delivers 9.8 px/frame knockback, 28 daze frames, magnitude 16 screen shake, and a 5-frame freeze-frame impact crunch!
+- **Exhaustion Cooldown & Overhead Gauge**: Initiates a 4-second cooldown with a retro neon progress gauge floating over the cat's head. Locomotion speed is halved (50%) during recovery until the bar refills and a chime rings.
+- **⚡ SUPER CLASH! ⚡**: Two cats dashing into each other collide in an explosive super clash blasting both fighters backward.
+
 ### 🌐 Peer-to-Peer Online Multiplayer
 - **Zero Server Setup**: Powered by direct WebRTC DataChannels using PeerJS with public STUN fallbacks.
 - **Instant Room Codes & Share Links**: One-click room creation with 6-character room codes (`cat-xxxx`) and direct WhatsApp duel invite buttons.
@@ -72,6 +80,7 @@
 | **Move Left** | <kbd>A</kbd> | <kbd>←</kbd> | ◀ Button |
 | **Move Right** | <kbd>D</kbd> | <kbd>→</kbd> | ▶ Button |
 | **Jump / Pounce** | <kbd>W</kbd> | <kbd>↑</kbd> | 🐾 JUMP Button |
+| **⚡ Turbo Attack** | Back-Back-Forward (<kbd>A</kbd><kbd>A</kbd><kbd>D</kbd> or <kbd>D</kbd><kbd>D</kbd><kbd>A</kbd>) | Back-Back-Forward (<kbd>←</kbd><kbd>←</kbd><kbd>→</kbd> or <kbd>→</kbd><kbd>→</kbd><kbd>←</kbd>) | Quick ◀ ◀ ▶ or ▶ ▶ ◀ |
 | **Ready Up (Round Start)** | Any P1 Control (<kbd>A</kbd>, <kbd>D</kbd>, <kbd>W</kbd>) | Any P2 Control (<kbd>←</kbd>, <kbd>→</kbd>, <kbd>↑</kbd>) | Touch JUMP / Movement |
 | **Start / Rematch** | <kbd>Space</kbd> or <kbd>W</kbd> | <kbd>Space</kbd> or <kbd>↑</kbd> | Touch JUMP |
 
