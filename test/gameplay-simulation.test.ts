@@ -188,4 +188,57 @@ console.log(`WhatsApp URL: ${waUrl}`);
 assert(waUrl.startsWith('https://api.whatsapp.com/send?text='), 'WhatsApp URL starts with API schema');
 assert(waUrl.includes(encodeURIComponent(shareUrl)), 'WhatsApp URL encodes room share link');
 
+console.log('\n--- 10. Testing Online Collision Effect Replication (BumpEventPacket) ---');
+import { EffectsRenderer } from '../src/graphics/EffectsRenderer';
+import { BumpEventPacket } from '../src/network/NetworkManager';
+
+const effects = new EffectsRenderer();
+let lastProcessedBumpId = 0;
+
+function handleRemoteBumpTest(bump: BumpEventPacket): void {
+  if (!bump || bump.id <= lastProcessedBumpId) return;
+  lastProcessedBumpId = bump.id;
+
+  effects.addComicPopup(bump.comicText, bump.contactX, bump.contactY, bump.isMega);
+  effects.triggerScreenShake(bump.shakeMagnitude);
+  if (bump.heightDelta > 15) {
+    effects.triggerHitStop(bump.isMega ? 3 : 1);
+  }
+}
+
+const testPacket1: BumpEventPacket = {
+  id: 1,
+  comicText: 'POW!',
+  contactX: 420,
+  contactY: 300,
+  isMega: false,
+  shakeMagnitude: 6,
+  heightDelta: 22,
+};
+
+handleRemoteBumpTest(testPacket1);
+assert(lastProcessedBumpId === 1, 'First bump packet processed');
+assert(effects.shakeAmount === 6, 'Guest receives screen shake');
+assert(effects.hitStopFrames === 1, 'Guest receives hit stop freeze frame');
+
+// Re-sending same bump packet should be deduped
+handleRemoteBumpTest(testPacket1);
+assert(lastProcessedBumpId === 1, 'Duplicate bump packet is safely deduplicated');
+
+// Mega Bonk test
+const testPacketMega: BumpEventPacket = {
+  id: 2,
+  comicText: '★ MEGA BONK! ★',
+  contactX: 450,
+  contactY: 280,
+  isMega: true,
+  shakeMagnitude: 10,
+  heightDelta: 35,
+};
+
+handleRemoteBumpTest(testPacketMega);
+assert(lastProcessedBumpId === 2, 'Mega bonk processed');
+assert(effects.shakeAmount === 10, 'Mega bonk screen shake matches magnitude 10');
+assert(effects.hitStopFrames === 3, 'Mega bonk triggers 3 frames of hit stop');
+
 console.log('\n🎉 ALL GAMEPLAY SIMULATION TESTS PASSED!\n');

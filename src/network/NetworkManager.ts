@@ -12,15 +12,26 @@ export interface PlayerInputPacket {
   jump: boolean;
 }
 
+export interface BumpEventPacket {
+  id: number;
+  comicText: string;
+  contactX: number;
+  contactY: number;
+  isMega: boolean;
+  shakeMagnitude: number;
+  heightDelta: number;
+}
+
 export interface NetworkStateSnapshot {
   tick: number;
-  p1: { x: number; y: number; vx: number; vy: number; state: string; facing: number };
-  p2: { x: number; y: number; vx: number; vy: number; state: string; facing: number };
+  p1: { x: number; y: number; vx: number; vy: number; state: string; facing: number; scaleX?: number; scaleY?: number };
+  p2: { x: number; y: number; vx: number; vy: number; state: string; facing: number; scaleX?: number; scaleY?: number };
   matchPhase: string;
   currentRound: number;
   phaseTimer: number;
   p1Wins: number;
   p2Wins: number;
+  bump?: BumpEventPacket | null;
 }
 
 export interface NetworkSignal {

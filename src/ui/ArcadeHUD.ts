@@ -55,6 +55,16 @@ export class ArcadeHUD {
     }
   }
 
+  public syncRoundOver(winner: Cat, isTournamentWin: boolean): void {
+    this.matchPhase = 'ROUND_OVER';
+    this.phaseTimer = 140;
+    this.winnerCat = winner;
+    this.announcementText = 'RING OUT!';
+    this.announcementSubtext = isTournamentWin
+      ? `${winner.name.toUpperCase()} WINS THE TOURNAMENT!`
+      : `${winner.name.toUpperCase()} TAKES THE ROUND!`;
+  }
+
   public update(): void {
     this.frameCounter++;
 

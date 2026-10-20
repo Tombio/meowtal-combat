@@ -9,7 +9,7 @@ import { EffectsRenderer } from './graphics/EffectsRenderer';
 import { ArcadeHUD } from './ui/ArcadeHUD';
 import { KeyConfigModal } from './ui/KeyConfigModal';
 import { TouchController } from './ui/TouchController';
-import { NetworkManager, PlayerInputPacket, NetworkStateSnapshot } from './network/NetworkManager';
+import { NetworkManager, PlayerInputPacket, NetworkStateSnapshot, BumpEventPacket, NetworkSignal } from './network/NetworkManager';
 import { OnlineModal } from './ui/OnlineModal';
 
 class CatSumoGame {
@@ -35,6 +35,12 @@ class CatSumoGame {
   private accumulator: number = 0;
   private readonly fixedStep: number = 1000 / 60; // 60 FPS fixed physics
   private tickCount: number = 0;
+
+  // Online bump event synchronization
+  private bumpSequence: number = 0;
+  private lastProcessedBumpId: number = 0;
+  private latestBumpPacket: BumpEventPacket | null = null;
+  private bumpPacketExpiryTick: number = 0;
 
   constructor() {
     this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -200,6 +206,12 @@ class CatSumoGame {
       }
     };
 
+    this.network.onRemoteSignalReceived = (signal: NetworkSignal) => {
+      if (signal.type === 'BONK_EVENT' && signal.payload) {
+        this.handleRemoteBump(signal.payload);
+      }
+    };
+
     this.network.onRemoteStateReceived = (state: NetworkStateSnapshot) => {
       if (!this.network.isHost()) {
         // Guest receives Host's authoritative state
@@ -209,6 +221,8 @@ class CatSumoGame {
         this.p1.vy = state.p1.vy;
         this.p1.state = state.p1.state as any;
         this.p1.facing = state.p1.facing as any;
+        if (state.p1.scaleX !== undefined) this.p1.scaleX = state.p1.scaleX;
+        if (state.p1.scaleY !== undefined) this.p1.scaleY = state.p1.scaleY;
 
         this.p2.x = state.p2.x;
         this.p2.y = state.p2.y;
@@ -216,21 +230,110 @@ class CatSumoGame {
         this.p2.vy = state.p2.vy;
         this.p2.state = state.p2.state as any;
         this.p2.facing = state.p2.facing as any;
+        if (state.p2.scaleX !== undefined) this.p2.scaleX = state.p2.scaleX;
+        if (state.p2.scaleY !== undefined) this.p2.scaleY = state.p2.scaleY;
 
         this.p1.roundsWon = state.p1Wins;
         this.p2.roundsWon = state.p2Wins;
-        this.hud.currentRound = state.currentRound;
+
+        // Process synchronized collision text & bonk effects
+        if (state.bump) {
+          this.handleRemoteBump(state.bump);
+        }
+
+        // Round & track synchronization
+        if (this.hud.currentRound !== state.currentRound) {
+          this.hud.currentRound = state.currentRound;
+          const trackTitle = this.sound.setRoundTrack(state.currentRound);
+          this.hud.showTrackBanner(trackTitle);
+        }
 
         if (this.hud.matchPhase !== state.matchPhase) {
           this.hud.matchPhase = state.matchPhase as any;
           if (state.matchPhase === 'ROUND_INTRO') {
             this.sound.playTaikoDon();
+            this.hud.startRoundIntro();
           } else if (state.matchPhase === 'ROUND_OVER') {
             this.sound.playRingOut();
+            this.effects.triggerScreenShake(8);
+
+            const winner = state.p1Wins > this.p1.roundsWon ? this.p1 : this.p2;
+            const isTourneyWin = state.p1Wins >= this.hud.maxRoundsToWin || state.p2Wins >= this.hud.maxRoundsToWin;
+            this.hud.syncRoundOver(winner, isTourneyWin);
+
+            if (isTourneyWin) {
+              setTimeout(() => {
+                this.sound.playVictoryFanfare();
+              }, 800);
+            }
           }
         }
       }
     };
+  }
+
+  private handleRemoteBump(bump: BumpEventPacket): void {
+    if (!bump || bump.id <= this.lastProcessedBumpId) return;
+    this.lastProcessedBumpId = bump.id;
+
+    // Render comic text popup and screen shake on the guest
+    this.effects.addComicPopup(bump.comicText, bump.contactX, bump.contactY, bump.isMega);
+    this.effects.triggerScreenShake(bump.shakeMagnitude);
+    this.effects.addDust(bump.contactX, bump.contactY + 20, bump.isMega ? 10 : 5);
+
+    if (bump.heightDelta > 15) {
+      this.effects.triggerHitStop(bump.isMega ? 3 : 1);
+    }
+
+    // Play synchronized bump sound
+    if (bump.heightDelta > 9) {
+      this.sound.playBonk(bump.heightDelta);
+      if (bump.heightDelta > 22) {
+        setTimeout(() => {
+          this.sound.playMeow(1.0);
+        }, 70);
+      }
+    } else {
+      this.sound.playShove();
+    }
+  }
+
+  private broadcastStateSnapshot(): void {
+    if (!this.network.isConnected() || !this.network.isHost()) return;
+
+    const activeBump = (this.latestBumpPacket && this.tickCount < this.bumpPacketExpiryTick)
+      ? this.latestBumpPacket
+      : null;
+
+    this.network.sendState({
+      tick: this.tickCount++,
+      p1: {
+        x: this.p1.x,
+        y: this.p1.y,
+        vx: this.p1.vx,
+        vy: this.p1.vy,
+        state: this.p1.state,
+        facing: this.p1.facing,
+        scaleX: this.p1.scaleX,
+        scaleY: this.p1.scaleY,
+      },
+      p2: {
+        x: this.p2.x,
+        y: this.p2.y,
+        vx: this.p2.vx,
+        vy: this.p2.vy,
+        state: this.p2.state,
+        facing: this.p2.facing,
+        scaleX: this.p2.scaleX,
+        scaleY: this.p2.scaleY,
+      },
+      matchPhase: this.hud.matchPhase,
+      currentRound: this.hud.currentRound,
+      phaseTimer: this.hud.phaseTimer,
+      p1Wins: this.p1.roundsWon,
+      p2Wins: this.p2.roundsWon,
+      bump: activeBump,
+    });
   }
 
   private handleOnlineGameStart(): void {
@@ -344,6 +447,19 @@ class CatSumoGame {
         if (this.input.isJustPressed('p2', 'jump') && this.p2.isGrounded) {
           this.sound.playJump();
         }
+
+        // Keep animations (tail wag, eyes blink, paws step) alive on guest
+        this.p1.updateAnimation();
+        this.p2.updateAnimation(this.input.isDown('p2', 'jump'));
+
+        if (this.p1.dustParticlesToSpawn > 0) {
+          this.effects.addDust(this.p1.x + this.p1.width / 2, this.p1.y + this.p1.height, this.p1.dustParticlesToSpawn);
+          this.p1.dustParticlesToSpawn = 0;
+        }
+        if (this.p2.dustParticlesToSpawn > 0) {
+          this.effects.addDust(this.p2.x + this.p2.width / 2, this.p2.y + this.p2.height, this.p2.dustParticlesToSpawn);
+          this.p2.dustParticlesToSpawn = 0;
+        }
       } else {
         // Host or Local: Process Jump Inputs
         if (this.input.isJustPressed('p1', 'jump') && this.p1.isGrounded) {
@@ -391,6 +507,26 @@ class CatSumoGame {
           if (bumpEvent.heightDelta > 15) {
             this.effects.triggerHitStop(isMega ? 3 : 1);
           }
+
+          // Broadcast bump event to remote guest for instant synchronized comic text & audio
+          if (this.network.isConnected() && this.network.isHost()) {
+            this.bumpSequence++;
+            this.latestBumpPacket = {
+              id: this.bumpSequence,
+              comicText: bumpEvent.comicText,
+              contactX: bumpEvent.contactX,
+              contactY: bumpEvent.contactY - 20,
+              isMega,
+              shakeMagnitude: bumpEvent.shakeMagnitude,
+              heightDelta: bumpEvent.heightDelta,
+            };
+            this.bumpPacketExpiryTick = this.tickCount + 30;
+
+            this.network.sendSignal({
+              type: 'BONK_EVENT',
+              payload: this.latestBumpPacket,
+            });
+          }
         }
 
         // Ring Out & Time Over Check
@@ -432,18 +568,7 @@ class CatSumoGame {
         }
 
         // If online host, broadcast authoritative snapshot
-        if (this.network.isConnected() && this.network.isHost()) {
-          this.network.sendState({
-            tick: this.tickCount++,
-            p1: { x: this.p1.x, y: this.p1.y, vx: this.p1.vx, vy: this.p1.vy, state: this.p1.state, facing: this.p1.facing },
-            p2: { x: this.p2.x, y: this.p2.y, vx: this.p2.vx, vy: this.p2.vy, state: this.p2.state, facing: this.p2.facing },
-            matchPhase: this.hud.matchPhase,
-            currentRound: this.hud.currentRound,
-            phaseTimer: this.hud.phaseTimer,
-            p1Wins: this.p1.roundsWon,
-            p2Wins: this.p2.roundsWon,
-          });
-        }
+        this.broadcastStateSnapshot();
       }
     } else if (this.hud.matchPhase === 'ROUND_OVER') {
       if (!this.network.isConnected() || this.network.isHost()) {
@@ -456,18 +581,7 @@ class CatSumoGame {
           this.resetCatsForRound();
         }
 
-        if (this.network.isConnected() && this.network.isHost()) {
-          this.network.sendState({
-            tick: this.tickCount++,
-            p1: { x: this.p1.x, y: this.p1.y, vx: this.p1.vx, vy: this.p1.vy, state: this.p1.state, facing: this.p1.facing },
-            p2: { x: this.p2.x, y: this.p2.y, vx: this.p2.vx, vy: this.p2.vy, state: this.p2.state, facing: this.p2.facing },
-            matchPhase: this.hud.matchPhase,
-            currentRound: this.hud.currentRound,
-            phaseTimer: this.hud.phaseTimer,
-            p1Wins: this.p1.roundsWon,
-            p2Wins: this.p2.roundsWon,
-          });
-        }
+        this.broadcastStateSnapshot();
       }
     }
 

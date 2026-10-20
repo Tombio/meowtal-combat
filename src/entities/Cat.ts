@@ -110,15 +110,11 @@ export class Cat {
     this.scaleY = 1.25;
   }
 
-  public updatePhysics(
-    arena: Arena,
-    inputLeft: boolean,
-    inputRight: boolean,
-    inputJumpHeld: boolean,
-    otherCatX: number
-  ): void {
+  public updateAnimation(inputJumpHeld?: boolean): void {
     this.animTimer++;
-    this.isHoldingJump = inputJumpHeld;
+    if (inputJumpHeld !== undefined) {
+      this.isHoldingJump = inputJumpHeld;
+    }
 
     // Blink timer
     this.blinkTimer--;
@@ -130,6 +126,16 @@ export class Cat {
     // Squash & Stretch Spring recovery
     this.scaleX += (1.0 - this.scaleX) * 0.15;
     this.scaleY += (1.0 - this.scaleY) * 0.15;
+  }
+
+  public updatePhysics(
+    arena: Arena,
+    inputLeft: boolean,
+    inputRight: boolean,
+    inputJumpHeld: boolean,
+    otherCatX: number
+  ): void {
+    this.updateAnimation(inputJumpHeld);
 
     // Handle Ring Out state
     if (this.state === 'RING_OUT') {
