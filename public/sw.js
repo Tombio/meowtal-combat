@@ -1,4 +1,4 @@
-const CACHE_NAME = 'meowtal-v1';
+const CACHE_NAME = 'meowtal-v2';
 const PRECACHE_ASSETS = [
   './',
   './index.html',

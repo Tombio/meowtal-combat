@@ -328,6 +328,36 @@ class CatSumoGame {
     document.addEventListener('fullscreenchange', updateFsBtnText);
     document.addEventListener('webkitfullscreenchange', updateFsBtnText);
 
+    // Strict iOS/Mobile Viewport & Overscroll Lock:
+    // Guarantees strictly zero scrolling, rubber-banding, or viewport jumping on mobile & installed PWA
+    const lockViewportScroll = () => {
+      window.scrollTo(0, 0);
+      document.body.scrollTop = 0;
+      document.documentElement.scrollTop = 0;
+    };
+
+    window.addEventListener('scroll', lockViewportScroll, { passive: false });
+    window.addEventListener('resize', lockViewportScroll);
+    window.addEventListener('orientationchange', () => {
+      lockViewportScroll();
+      setTimeout(lockViewportScroll, 80);
+      setTimeout(lockViewportScroll, 250);
+    });
+
+    // Prevent iOS rubber-band overscroll while allowing internal scrolling inside modal dialogs
+    document.addEventListener('touchmove', (e: TouchEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isScrollableModal = target?.closest('.modal-box, .menu-list, #how-to-play-panel, .key-grid');
+      if (!isScrollableModal) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    // Prevent iOS Safari gesture/pinch zooming
+    document.addEventListener('gesturestart', (e) => e.preventDefault());
+    document.addEventListener('gesturechange', (e) => e.preventDefault());
+    document.addEventListener('gestureend', (e) => e.preventDefault());
+
     // Auto-start audio and BGM on very first user interaction
     const startAudioOnUserGesture = () => {
       this.sound.startBGM();

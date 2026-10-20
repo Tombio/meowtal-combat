@@ -15,6 +15,12 @@ export class TouchController {
     this.container = document.getElementById('touch-controls-container');
     if (!this.container) return;
 
+    // Strict iOS/Mobile Touchmove Locking: prevents dragging or rubber-banding while touching controls
+    this.container.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    }, { passive: false });
+
     this.bindButton('touch-btn-left', 'left');
     this.bindButton('touch-btn-right', 'right');
     this.bindButton('touch-btn-jump', 'jump');
@@ -105,6 +111,12 @@ export class TouchController {
     btn.addEventListener('pointerup', endAction);
     btn.addEventListener('pointercancel', endAction);
     btn.addEventListener('pointerleave', endAction);
+
+    // Prevent touch scrolling / gesture dragging when thumb slides across button
+    btn.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    }, { passive: false });
 
     // Prevent context menu or dragging
     btn.addEventListener('contextmenu', (e) => e.preventDefault());
