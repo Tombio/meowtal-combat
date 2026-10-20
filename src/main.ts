@@ -616,18 +616,90 @@ class CatSumoGame {
     // 4. Draw Arcade HUD & Announcements
     this.hud.draw(this.ctx, this.p1, this.p2, width, height);
 
-    // 5. Draw Online Status Badge if active
-    if (this.network.isConnected()) {
-      this.ctx.save();
-      this.ctx.fillStyle = '#00f0ff';
-      this.ctx.font = '8px "Press Start 2P", monospace';
-      this.ctx.textAlign = 'right';
-      const roleText = this.network.isHost() ? 'P1 (HOST)' : 'P2 (GUEST)';
-      this.ctx.fillText(`🌐 ONLINE: ${roleText} [${this.network.getRoomId()}]`, width - 16, 22);
-      this.ctx.restore();
-    }
+    // 5. Draw Online Status & Ping Badge if active
+    this.drawOnlineHUD(this.ctx, width);
 
     this.ctx.restore();
+  }
+
+  private drawOnlineHUD(ctx: CanvasRenderingContext2D, width: number): void {
+    if (!this.network.isConnected()) return;
+
+    ctx.save();
+    ctx.font = '8px "Press Start 2P", monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+
+    const roleText = this.network.isHost() ? 'P1 (HOST)' : 'P2 (GUEST)';
+    const roomId = this.network.getRoomId() || '';
+    const leftText = `🌐 ${roleText} [${roomId}]`;
+    const ping = this.network.getPing();
+    const pingText = ping !== null ? `${ping} ms` : '-- ms';
+
+    // Latency color indicator
+    let pingColor = '#888888';
+    if (ping !== null) {
+      if (ping < 60) {
+        pingColor = '#00ff66'; // Excellent (<60ms)
+      } else if (ping <= 130) {
+        pingColor = '#ffe600'; // Playable (60-130ms)
+      } else {
+        pingColor = '#ff3366'; // High lag (>130ms)
+      }
+    }
+
+    const leftWidth = ctx.measureText(leftText).width;
+    const pingWidth = ctx.measureText(pingText).width;
+    const dotRadius = 3;
+    const paddingX = 8;
+    const separatorGap = 8;
+    const dotGap = 6;
+    const boxHeight = 22;
+    const boxWidth = paddingX + leftWidth + separatorGap + 6 + separatorGap + dotRadius * 2 + dotGap + pingWidth + paddingX;
+    const boxX = width - 16 - boxWidth;
+    const boxY = 62;
+    const centerY = boxY + boxHeight / 2;
+
+    // Badge backdrop
+    ctx.fillStyle = 'rgba(12, 6, 24, 0.88)';
+    ctx.strokeStyle = 'rgba(0, 240, 255, 0.4)';
+    ctx.lineWidth = 1.5;
+
+    ctx.beginPath();
+    if (typeof (ctx as any).roundRect === 'function') {
+      (ctx as any).roundRect(boxX, boxY, boxWidth, boxHeight, 4);
+    } else {
+      ctx.rect(boxX, boxY, boxWidth, boxHeight);
+    }
+    ctx.fill();
+    ctx.stroke();
+
+    // 1. Role and Room Code
+    let curX = boxX + paddingX;
+    ctx.fillStyle = '#00f0ff';
+    ctx.fillText(leftText, curX, centerY);
+    curX += leftWidth + separatorGap;
+
+    // 2. Separator
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+    ctx.fillText('|', curX, centerY);
+    curX += 6 + separatorGap;
+
+    // 3. Latency dot
+    ctx.beginPath();
+    ctx.arc(curX + dotRadius, centerY, dotRadius, 0, Math.PI * 2);
+    ctx.fillStyle = pingColor;
+    ctx.shadowColor = pingColor;
+    ctx.shadowBlur = 6;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    curX += dotRadius * 2 + dotGap;
+
+    // 4. Ping in ms
+    ctx.fillStyle = pingColor;
+    ctx.fillText(pingText, curX, centerY);
+
+    ctx.restore();
   }
 }
 

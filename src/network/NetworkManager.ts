@@ -39,11 +39,22 @@ export interface NetworkSignal {
   payload?: any;
 }
 
+export interface PingPacket {
+  id: number;
+  ts: number;
+}
+
 export class NetworkManager {
   private peer: Peer | null = null;
   private conn: DataConnection | null = null;
   private role: NetworkRole | null = null;
   private currentRoomId: string | null = null;
+
+  // Ping & RTT latency state
+  private pingInterval: any = null;
+  private pingSeq: number = 0;
+  private currentPingMs: number | null = null;
+  private lastPongReceivedAt: number = 0;
 
   // Callbacks
   public onConnectionChanged: ((connected: boolean, role: NetworkRole, roomId: string) => void) | null = null;
@@ -51,6 +62,7 @@ export class NetworkManager {
   public onRemoteInputReceived: ((inputs: PlayerInputPacket) => void) | null = null;
   public onRemoteStateReceived: ((state: NetworkStateSnapshot) => void) | null = null;
   public onRemoteSignalReceived: ((signal: NetworkSignal) => void) | null = null;
+  public onPingUpdate: ((pingMs: number) => void) | null = null;
 
   constructor() {}
 
@@ -177,6 +189,7 @@ export class NetworkManager {
 
   private setupConnectionHandlers(conn: DataConnection): void {
     conn.on('open', () => {
+      this.startPingLoop();
       if (this.onConnectionChanged && this.role && this.currentRoomId) {
         this.onConnectionChanged(true, this.role, this.currentRoomId);
       }
@@ -191,10 +204,15 @@ export class NetworkManager {
         this.onRemoteStateReceived(raw.d);
       } else if (raw.t === 'signal' && this.onRemoteSignalReceived) {
         this.onRemoteSignalReceived(raw.d);
+      } else if (raw.t === 'ping') {
+        this.handlePing(raw.d);
+      } else if (raw.t === 'pong') {
+        this.handlePong(raw.d);
       }
     });
 
     conn.on('close', () => {
+      this.stopPingLoop();
       this.conn = null;
       if (this.onConnectionChanged && this.role && this.currentRoomId) {
         this.onConnectionChanged(false, this.role, this.currentRoomId);
@@ -204,6 +222,69 @@ export class NetworkManager {
     conn.on('error', (err) => {
       console.error('DataConnection error:', err);
     });
+  }
+
+  private startPingLoop(): void {
+    this.stopPingLoop();
+    this.sendPing();
+    this.pingInterval = setInterval(() => {
+      this.sendPing();
+    }, 500);
+  }
+
+  private stopPingLoop(): void {
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+      this.pingInterval = null;
+    }
+    this.currentPingMs = null;
+    this.lastPongReceivedAt = 0;
+  }
+
+  public sendPing(): void {
+    if (this.conn && this.conn.open) {
+      this.pingSeq++;
+      this.conn.send({
+        t: 'ping',
+        d: { id: this.pingSeq, ts: performance.now() } as PingPacket,
+      });
+    }
+  }
+
+  public handlePing(packet: PingPacket): void {
+    if (!packet || typeof packet.ts !== 'number') return;
+    if (this.conn && this.conn.open) {
+      this.conn.send({
+        t: 'pong',
+        d: packet,
+      });
+    }
+  }
+
+  public handlePong(packet: PingPacket): void {
+    if (!packet || typeof packet.ts !== 'number') return;
+    const now = performance.now();
+    const rtt = Math.max(1, Math.round(now - packet.ts));
+    this.lastPongReceivedAt = now;
+
+    if (this.currentPingMs === null) {
+      this.currentPingMs = rtt;
+    } else {
+      // 40% prev, 60% new for responsive yet smooth measurement
+      this.currentPingMs = Math.round(this.currentPingMs * 0.4 + rtt * 0.6);
+    }
+
+    if (this.onPingUpdate) {
+      this.onPingUpdate(this.currentPingMs);
+    }
+  }
+
+  public getPing(): number | null {
+    // If no pong received within 4 seconds while connected, indicate timeout / heavy lag
+    if (this.currentPingMs !== null && this.lastPongReceivedAt > 0 && performance.now() - this.lastPongReceivedAt > 4000) {
+      return 999;
+    }
+    return this.currentPingMs;
   }
 
   public sendInputs(packet: PlayerInputPacket): void {
@@ -225,6 +306,7 @@ export class NetworkManager {
   }
 
   public leaveRoom(): void {
+    this.stopPingLoop();
     if (this.conn) {
       try {
         this.conn.close();

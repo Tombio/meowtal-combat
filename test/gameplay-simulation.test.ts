@@ -241,4 +241,30 @@ assert(lastProcessedBumpId === 2, 'Mega bonk processed');
 assert(effects.shakeAmount === 10, 'Mega bonk screen shake matches magnitude 10');
 assert(effects.hitStopFrames === 3, 'Mega bonk triggers 3 frames of hit stop');
 
+console.log('\n--- 11. Testing P2P Network Ping / Latency Calculation ---');
+const netTest = new NetworkManager();
+assert(netTest.getPing() === null, 'Ping is initially null before connection handshake');
+
+// Simulate first Pong packet with 50ms latency
+const t0 = performance.now();
+let callbackReceivedPing = 0;
+netTest.onPingUpdate = (p) => {
+  callbackReceivedPing = p;
+};
+
+netTest.handlePong({ id: 1, ts: t0 - 50 });
+const firstPing = netTest.getPing();
+assert(firstPing !== null && firstPing >= 49 && firstPing <= 55, `First ping RTT is approximately 50ms (got ${firstPing}ms)`);
+assert(callbackReceivedPing === firstPing, `Ping update callback fired with ${callbackReceivedPing}ms`);
+
+// Simulate second Pong packet with 90ms latency and verify EMA smoothing (40% prev, 60% new)
+netTest.handlePong({ id: 2, ts: t0 - 90 });
+const secondPing = netTest.getPing();
+// Expected: Math.round(50 * 0.4 + 90 * 0.6) = Math.round(20 + 54) = 74
+assert(secondPing !== null && secondPing >= 70 && secondPing <= 78, `Smoothed ping is approximately 74ms (got ${secondPing}ms)`);
+
+// Simulate leaving room / disconnect: ping should reset to null
+netTest.leaveRoom();
+assert(netTest.getPing() === null, 'Ping resets to null on leaveRoom()');
+
 console.log('\n🎉 ALL GAMEPLAY SIMULATION TESTS PASSED!\n');
