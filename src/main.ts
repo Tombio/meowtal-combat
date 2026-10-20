@@ -206,9 +206,7 @@ class CatSumoGame {
           this.resetCatsForRound();
         }
       } else if (this.hud.matchPhase === 'ROUND_READY') {
-        if (e.code === 'Space' || e.code === 'Enter') {
-          this.handleReadyInput('any');
-        } else if (this.input.isKeyForPlayer(e.code, 'p1')) {
+        if (this.input.isKeyForPlayer(e.code, 'p1')) {
           this.handleReadyInput('p1');
         } else if (this.input.isKeyForPlayer(e.code, 'p2')) {
           this.handleReadyInput('p2');
@@ -226,13 +224,13 @@ class CatSumoGame {
     });
   }
 
-  private handleReadyInput(source: 'any' | 'p1' | 'p2'): void {
+  private handleReadyInput(player: 'p1' | 'p2'): void {
     if (this.hud.matchPhase !== 'ROUND_READY') return;
 
     if (this.network.isConnected()) {
       if (this.network.isHost()) {
-        // Online Host is Mochi (P1): ready upon any host key or P1 action
-        if (source === 'p1' || source === 'any') {
+        // Online Host is Mochi (P1): only P1 mapped inputs can ack
+        if (player === 'p1') {
           if (!this.hud.p1Ready) {
             this.hud.p1Ready = true;
             this.sound.playTaikoKa();
@@ -240,8 +238,8 @@ class CatSumoGame {
           }
         }
       } else {
-        // Online Guest is Kuro (P2): ready upon any guest key or P2 action
-        if (source === 'p2' || source === 'any') {
+        // Online Guest is Kuro (P2): only P2 mapped inputs can ack
+        if (player === 'p2') {
           if (!this.hud.p2Ready) {
             this.hud.p2Ready = true;
             this.sound.playTaikoKa();
@@ -250,23 +248,14 @@ class CatSumoGame {
         }
       }
     } else {
-      // Local 2-Player Mode
-      if (source === 'p1') {
+      // Local 2-Player Mode: each player must press one of their own mapped controls
+      if (player === 'p1') {
         if (!this.hud.p1Ready) {
           this.hud.p1Ready = true;
           this.sound.playTaikoKa();
         }
-      } else if (source === 'p2') {
+      } else if (player === 'p2') {
         if (!this.hud.p2Ready) {
-          this.hud.p2Ready = true;
-          this.sound.playTaikoKa();
-        }
-      } else {
-        // Space / Enter / 'any' key: ready P1 first, then P2 (or both if pressed again)
-        if (!this.hud.p1Ready) {
-          this.hud.p1Ready = true;
-          this.sound.playTaikoKa();
-        } else if (!this.hud.p2Ready) {
           this.hud.p2Ready = true;
           this.sound.playTaikoKa();
         }

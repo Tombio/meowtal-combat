@@ -376,6 +376,8 @@ assert(localInput.isDown('p1', 'right'), 'Local mode accepts P1 keyboard inputs'
 assert(localInput.isDown('p2', 'right'), 'Local mode accepts P2 keyboard inputs');
 assert(localInput.isKeyForPlayer('KeyA', 'p1'), 'Local mode maps KeyA to P1');
 assert(localInput.isKeyForPlayer('ArrowLeft', 'p2'), 'Local mode maps ArrowLeft to P2');
+assert(!localInput.isKeyForPlayer('Space', 'p1'), 'Space is not mapped for P1');
+assert(!localInput.isKeyForPlayer('Space', 'p2'), 'Space is not mapped for P2');
 assert(localInput.isPlayerActionJustPressed('p1'), 'Local mode detects any action just pressed for P1');
 assert(localInput.isPlayerActionJustPressed('p2'), 'Local mode detects any action just pressed for P2');
 
