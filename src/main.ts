@@ -101,8 +101,30 @@ class CatSumoGame {
     this.initNetworkSync();
     this.resetCatsForRound();
     this.checkUrlRoomHash();
+    this.checkDemoParam();
 
     requestAnimationFrame((t) => this.gameLoop(t));
+  }
+
+  private checkDemoParam(): void {
+    if (typeof window !== 'undefined' && window.location.search.includes('demo=fight')) {
+      setTimeout(() => {
+        this.hud.startMatch();
+        this.hud.p1Ready = true;
+        this.hud.p2Ready = true;
+        this.hud.matchPhase = 'FIGHT';
+        this.p1.x = 370;
+        this.p1.y = 250;
+        this.p1.vy = -3;
+        this.p1.isGrounded = false;
+        this.p1.state = 'JUMP_RISE';
+        this.p2.x = 470;
+        this.p2.y = 338;
+        this.p2.state = 'WADDLE';
+        this.effects.addComicPopup('POUNCE!', 430, 240, true);
+        this.effects.addDust(470, 390, 8);
+      }, 150);
+    }
   }
 
   private initControls(): void {
