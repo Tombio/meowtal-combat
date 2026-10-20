@@ -44,6 +44,7 @@ class CatSumoGame {
 
   // Host input delay buffer to level playing field with guest
   private hostInputQueue: Array<{ left: boolean; right: boolean; jump: boolean; justJump: boolean }> = [];
+  private prevCountdownText: string = '';
 
   constructor() {
     this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -78,6 +79,24 @@ class CatSumoGame {
     this.network = new NetworkManager();
     this.onlineModal = new OnlineModal(this.network, () => this.handleOnlineGameStart());
 
+    // When opponent leaves, host returns to lobby and resets match to title
+    this.onlineModal.onOpponentLeft = () => {
+      this.hud.matchPhase = 'TITLE';
+      this.p1.roundsWon = 0;
+      this.p2.roundsWon = 0;
+      this.resetCatsForRound();
+      this.input.setActiveRole(null);
+    };
+
+    // When modal is closed (X button), return to local title mode
+    this.onlineModal.onClose = () => {
+      this.hud.matchPhase = 'TITLE';
+      this.p1.roundsWon = 0;
+      this.p2.roundsWon = 0;
+      this.resetCatsForRound();
+      this.input.setActiveRole(null);
+    };
+
     this.initControls();
     this.initNetworkSync();
     this.resetCatsForRound();
@@ -100,6 +119,13 @@ class CatSumoGame {
     const btnOnlineMarquee = document.getElementById('btn-online-marquee');
 
     const openOnline = () => {
+      // Switching mode from local to online: stop game loop and reset to main menu
+      this.hud.matchPhase = 'TITLE';
+      this.p1.roundsWon = 0;
+      this.p2.roundsWon = 0;
+      this.resetCatsForRound();
+      this.input.setActiveRole(null);
+      this.network.leaveRoom();
       this.onlineModal.open();
     };
 
@@ -176,6 +202,8 @@ class CatSumoGame {
           this.sound.playTaikoDon();
           this.hud.startMatch();
           this.resetCatsForRound();
+        } else if (this.hud.matchPhase === 'ROUND_READY') {
+          this.handleReadyInput('space');
         } else if (this.hud.matchPhase === 'MATCH_OVER') {
           this.sound.playTaikoDon();
           this.p1.roundsWon = 0;
@@ -183,8 +211,59 @@ class CatSumoGame {
           this.hud.startMatch();
           this.resetCatsForRound();
         }
+      } else if (this.hud.matchPhase === 'ROUND_READY') {
+        const keyMap = this.input.getKeyMap();
+        if (e.code === keyMap.p1.jump) {
+          this.handleReadyInput('p1');
+        } else if (e.code === keyMap.p2.jump || e.code === 'Enter') {
+          this.handleReadyInput('p2');
+        }
       }
     });
+  }
+
+  private handleReadyInput(source: 'space' | 'p1' | 'p2'): void {
+    if (this.hud.matchPhase !== 'ROUND_READY') return;
+
+    if (this.network.isConnected()) {
+      if (this.network.isHost()) {
+        // Online Host is Mochi (P1)
+        if (!this.hud.p1Ready) {
+          this.hud.p1Ready = true;
+          this.sound.playTaikoKa();
+          this.broadcastStateSnapshot();
+        }
+      } else {
+        // Online Guest is Kuro (P2)
+        if (!this.hud.p2Ready) {
+          this.hud.p2Ready = true;
+          this.sound.playTaikoKa();
+          this.network.sendSignal({ type: 'PLAYER_READY' });
+        }
+      }
+    } else {
+      // Local 2-Player Mode
+      if (source === 'p1') {
+        if (!this.hud.p1Ready) {
+          this.hud.p1Ready = true;
+          this.sound.playTaikoKa();
+        }
+      } else if (source === 'p2') {
+        if (!this.hud.p2Ready) {
+          this.hud.p2Ready = true;
+          this.sound.playTaikoKa();
+        }
+      } else {
+        // Space key: ready P1 first, then P2 (or both if pressed again)
+        if (!this.hud.p1Ready) {
+          this.hud.p1Ready = true;
+          this.sound.playTaikoKa();
+        } else if (!this.hud.p2Ready) {
+          this.hud.p2Ready = true;
+          this.sound.playTaikoKa();
+        }
+      }
+    }
   }
 
   private checkUrlRoomHash(): void {
@@ -212,6 +291,12 @@ class CatSumoGame {
     this.network.onRemoteSignalReceived = (signal: NetworkSignal) => {
       if (signal.type === 'BONK_EVENT' && signal.payload) {
         this.handleRemoteBump(signal.payload);
+      } else if (signal.type === 'PLAYER_READY' && this.network.isHost()) {
+        if (!this.hud.p2Ready) {
+          this.hud.p2Ready = true;
+          this.sound.playTaikoKa();
+          this.broadcastStateSnapshot();
+        }
       }
     };
 
@@ -300,7 +385,13 @@ class CatSumoGame {
 
         if (this.hud.matchPhase !== state.matchPhase) {
           this.hud.matchPhase = state.matchPhase as any;
-          if (state.matchPhase === 'ROUND_INTRO') {
+          if (state.matchPhase === 'ROUND_READY') {
+            this.sound.playTaikoDon();
+            this.hud.startRoundReady();
+            this.resetCatsForRound();
+          } else if (state.matchPhase === 'ROUND_COUNTDOWN') {
+            this.hud.startCountdown();
+          } else if (state.matchPhase === 'ROUND_INTRO') {
             this.sound.playTaikoDon();
             this.hud.startRoundIntro();
             this.resetCatsForRound();
@@ -319,6 +410,10 @@ class CatSumoGame {
             }
           }
         }
+
+        if (state.p1Ready !== undefined) this.hud.p1Ready = state.p1Ready;
+        if (state.p2Ready !== undefined) this.hud.p2Ready = this.hud.p2Ready || state.p2Ready;
+        if (state.countdownText !== undefined) this.hud.countdownText = state.countdownText;
       }
     };
   }
@@ -383,11 +478,15 @@ class CatSumoGame {
       phaseTimer: this.hud.phaseTimer,
       p1Wins: this.p1.roundsWon,
       p2Wins: this.p2.roundsWon,
+      p1Ready: this.hud.p1Ready,
+      p2Ready: this.hud.p2Ready,
+      countdownText: this.hud.countdownText,
       bump: activeBump,
     });
   }
 
   private handleOnlineGameStart(): void {
+    this.input.setActiveRole(this.network.getRole());
     this.sound.startBGM();
     this.sound.playTaikoDon();
 
@@ -441,12 +540,13 @@ class CatSumoGame {
     const prevPhase = this.hud.matchPhase;
     this.hud.update();
 
-    // Reset cats whenever entering ROUND_INTRO (from ROUND_OVER or MATCH_OVER)
-    if (this.hud.matchPhase === 'ROUND_INTRO' && prevPhase !== 'ROUND_INTRO') {
+    // Reset cats whenever entering ROUND_READY or ROUND_INTRO (from ROUND_OVER or MATCH_OVER)
+    if ((this.hud.matchPhase === 'ROUND_READY' || this.hud.matchPhase === 'ROUND_INTRO') &&
+        (prevPhase !== 'ROUND_READY' && prevPhase !== 'ROUND_INTRO')) {
       this.resetCatsForRound();
     }
 
-    if (this.keyModal.isOpen()) {
+    if (this.keyModal.isOpen() || this.onlineModal.isOpen()) {
       return;
     }
 
@@ -474,7 +574,44 @@ class CatSumoGame {
       return;
     }
 
-    // During ROUND_INTRO: wait for fight signal
+    // Pre-round ready phase: wait for both players to press Space / Jump
+    if (this.hud.matchPhase === 'ROUND_READY') {
+      if (this.input.isJustPressed('p1', 'jump')) {
+        this.handleReadyInput('p1');
+      }
+      if (this.input.isJustPressed('p2', 'jump')) {
+        this.handleReadyInput('p2');
+      }
+      if (this.network.isConnected() && this.network.isHost()) {
+        this.broadcastStateSnapshot();
+      }
+      this.input.update();
+      return;
+    }
+
+    // 3, 2, 1, MEOW! countdown phase
+    if (this.hud.matchPhase === 'ROUND_COUNTDOWN') {
+      if (this.hud.countdownText !== this.prevCountdownText) {
+        if (this.hud.countdownText === '3' || this.hud.countdownText === '2' || this.hud.countdownText === '1') {
+          this.sound.playTaikoKa();
+        } else if (this.hud.countdownText === 'MEOW!') {
+          this.sound.playTaikoDon();
+          this.sound.playMeow(1.2);
+        }
+        this.prevCountdownText = this.hud.countdownText;
+      }
+      if (this.network.isConnected() && this.network.isHost()) {
+        this.broadcastStateSnapshot();
+      }
+      this.input.update();
+      return;
+    }
+
+    if (this.prevCountdownText) {
+      this.prevCountdownText = '';
+    }
+
+    // During ROUND_INTRO (legacy fallback): wait for fight signal
     if (this.hud.matchPhase === 'ROUND_INTRO') {
       if (this.hud.phaseTimer === 40) {
         this.sound.playTaikoKa();

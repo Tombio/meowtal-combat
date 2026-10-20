@@ -2,6 +2,8 @@ import { Cat } from '../entities/Cat';
 
 export type MatchPhase = 
   | 'TITLE'
+  | 'ROUND_READY'
+  | 'ROUND_COUNTDOWN'
   | 'ROUND_INTRO' 
   | 'FIGHT' 
   | 'ROUND_OVER' 
@@ -18,6 +20,12 @@ export class ArcadeHUD {
   public matchTimer: number = 60;
   private frameCounter: number = 0;
 
+  // Pre-round readiness and 3-2-1 MEOW countdown
+  public p1Ready: boolean = false;
+  public p2Ready: boolean = false;
+  public countdownTimer: number = 0;
+  public countdownText: string = '';
+
   // Track banner popup
   public trackBanner: string = '';
   public trackBannerTimer: number = 0;
@@ -29,15 +37,29 @@ export class ArcadeHUD {
 
   public startMatch(): void {
     this.currentRound = 1;
-    this.startRoundIntro();
+    this.startRoundReady();
+  }
+
+  public startRoundReady(): void {
+    this.matchPhase = 'ROUND_READY';
+    this.p1Ready = false;
+    this.p2Ready = false;
+    this.countdownTimer = 0;
+    this.countdownText = '';
+    this.phaseTimer = 0;
+    this.matchTimer = 60;
+    this.announcementText = this.currentRound >= 5 ? 'FINAL ROUND' : `ROUND ${this.currentRound}`;
+    this.announcementSubtext = 'BOTH PLAYERS PRESS [SPACE]';
+  }
+
+  public startCountdown(): void {
+    this.matchPhase = 'ROUND_COUNTDOWN';
+    this.countdownTimer = 160;
+    this.countdownText = '3';
   }
 
   public startRoundIntro(): void {
-    this.matchPhase = 'ROUND_INTRO';
-    this.phaseTimer = 110;
-    this.matchTimer = 60;
-    this.announcementText = this.currentRound >= 5 ? 'FINAL ROUND' : `ROUND ${this.currentRound}`;
-    this.announcementSubtext = 'HAKKEYOI... NOKOTTA!';
+    this.startRoundReady();
   }
 
   public triggerRoundOver(_loser: Cat, winner: Cat): void {
@@ -72,7 +94,28 @@ export class ArcadeHUD {
       this.trackBannerTimer--;
     }
 
-    if (this.matchPhase === 'ROUND_INTRO') {
+    if (this.matchPhase === 'ROUND_READY') {
+      if (this.p1Ready && this.p2Ready) {
+        this.startCountdown();
+      }
+    } else if (this.matchPhase === 'ROUND_COUNTDOWN') {
+      this.countdownTimer--;
+      if (this.countdownTimer > 120) {
+        this.countdownText = '3';
+      } else if (this.countdownTimer > 80) {
+        this.countdownText = '2';
+      } else if (this.countdownTimer > 40) {
+        this.countdownText = '1';
+      } else if (this.countdownTimer > 0) {
+        this.countdownText = 'MEOW!';
+      } else {
+        this.matchPhase = 'FIGHT';
+        this.countdownText = '';
+        this.p1Ready = false;
+        this.p2Ready = false;
+      }
+    } else if (this.matchPhase === 'ROUND_INTRO') {
+      // Legacy fallback
       this.phaseTimer--;
       if (this.phaseTimer <= 0) {
         this.matchPhase = 'FIGHT';
@@ -89,7 +132,7 @@ export class ArcadeHUD {
           this.matchPhase = 'MATCH_OVER';
         } else {
           this.currentRound++;
-          this.startRoundIntro();
+          this.startRoundReady();
         }
       }
     }
@@ -105,7 +148,11 @@ export class ArcadeHUD {
     this.drawTopBar(ctx, p1, p2, canvasWidth);
 
     // 2. Center Announcements
-    if (this.matchPhase === 'ROUND_INTRO') {
+    if (this.matchPhase === 'ROUND_READY') {
+      this.drawRoundReadyBanner(ctx, canvasWidth, canvasHeight);
+    } else if (this.matchPhase === 'ROUND_COUNTDOWN') {
+      this.drawCountdownBanner(ctx, canvasWidth, canvasHeight);
+    } else if (this.matchPhase === 'ROUND_INTRO') {
       this.drawRoundIntroBanner(ctx, canvasWidth, canvasHeight);
     } else if (this.matchPhase === 'ROUND_OVER') {
       this.drawRoundOverBanner(ctx, canvasWidth, canvasHeight);
@@ -117,6 +164,100 @@ export class ArcadeHUD {
     if (this.trackBannerTimer > 0) {
       this.drawTrackBanner(ctx, canvasWidth, canvasHeight);
     }
+  }
+
+  private drawRoundReadyBanner(ctx: CanvasRenderingContext2D, width: number, height: number): void {
+    const centerY = height / 2 - 35;
+
+    ctx.save();
+    // Dark glass announcement backdrop
+    ctx.fillStyle = 'rgba(8, 4, 18, 0.82)';
+    ctx.strokeStyle = '#ffe600';
+    ctx.lineWidth = 2;
+    const boxW = 620;
+    const boxH = 110;
+    const boxX = (width - boxW) / 2;
+    const boxY = centerY - 55;
+    ctx.fillRect(boxX, boxY, boxW, boxH);
+    ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+    ctx.textAlign = 'center';
+
+    // Round title (e.g. "ROUND 1")
+    ctx.font = '22px "Press Start 2P", monospace';
+    ctx.fillStyle = '#ffe600';
+    ctx.shadowColor = '#ff6b00';
+    ctx.shadowBlur = 12;
+    ctx.fillText(this.announcementText, width / 2, centerY - 20);
+
+    // Prompt line: "PRESS [SPACE] TO READY"
+    ctx.font = '9px "Press Start 2P", monospace';
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowBlur = 0;
+    ctx.fillText('BOTH PLAYERS MUST PRESS [SPACE] TO READY', width / 2, centerY + 4);
+
+    // Player Ready Badges
+    // Left: Mochi (P1)
+    const p1ReadyText = this.p1Ready ? '★ MOCHI: READY!' : '★ MOCHI: [SPACE]';
+    const p1Color = this.p1Ready ? '#00ff66' : (Math.floor(this.frameCounter / 20) % 2 === 0 ? '#ff9800' : '#888888');
+    ctx.font = '10px "Press Start 2P", monospace';
+    ctx.fillStyle = p1Color;
+    ctx.shadowColor = this.p1Ready ? '#00ff66' : '#ff9800';
+    ctx.shadowBlur = this.p1Ready ? 10 : 0;
+    ctx.textAlign = 'left';
+    ctx.fillText(p1ReadyText, boxX + 24, centerY + 34);
+
+    // Center divider
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.shadowBlur = 0;
+    ctx.fillText('VS', width / 2, centerY + 34);
+
+    // Right: Kuro (P2)
+    const p2ReadyText = this.p2Ready ? 'READY: KURO ★' : '[SPACE] :KURO ★';
+    const p2Color = this.p2Ready ? '#00e5ff' : (Math.floor(this.frameCounter / 20) % 2 === 0 ? '#00e5ff' : '#888888');
+    ctx.fillStyle = p2Color;
+    ctx.shadowColor = this.p2Ready ? '#00e5ff' : '#00b0ff';
+    ctx.shadowBlur = this.p2Ready ? 10 : 0;
+    ctx.textAlign = 'right';
+    ctx.fillText(p2ReadyText, boxX + boxW - 24, centerY + 34);
+
+    ctx.restore();
+  }
+
+  private drawCountdownBanner(ctx: CanvasRenderingContext2D, width: number, height: number): void {
+    const centerY = height / 2 - 25;
+
+    ctx.save();
+    ctx.textAlign = 'center';
+
+    if (this.countdownText === 'MEOW!') {
+      // Big explosive MEOW!
+      ctx.font = '52px "Press Start 2P", monospace';
+      ctx.fillStyle = '#ff0055';
+      ctx.shadowColor = '#ffe600';
+      ctx.shadowBlur = 25;
+      ctx.fillText('MEOW!', width / 2, centerY);
+
+      ctx.font = '13px "Press Start 2P", monospace';
+      ctx.fillStyle = '#ffe600';
+      ctx.shadowColor = '#ff007f';
+      ctx.shadowBlur = 10;
+      ctx.fillText('HAKKEYOI... NOKOTTA! (FIGHT!)', width / 2, centerY + 42);
+    } else {
+      // Number 3, 2, 1
+      const pulse = 1.0 + (this.countdownTimer % 40) / 40 * 0.25;
+      ctx.translate(width / 2, centerY);
+      ctx.scale(pulse, pulse);
+
+      ctx.font = '64px "Press Start 2P", monospace';
+      ctx.fillStyle = '#ffe600';
+      ctx.shadowColor = '#ff6b00';
+      ctx.shadowBlur = 22;
+      ctx.fillText(this.countdownText, 0, 20);
+    }
+
+    ctx.restore();
   }
 
   private drawTrackBanner(ctx: CanvasRenderingContext2D, width: number, height: number): void {

@@ -4,6 +4,7 @@ import { CollisionEngine } from '../src/engine/Collision';
 import { SoundSynthesizer } from '../src/audio/SoundSynthesizer';
 import { InputManager } from '../src/engine/InputManager';
 import { NetworkManager } from '../src/network/NetworkManager';
+import { ArcadeHUD } from '../src/ui/ArcadeHUD';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -329,5 +330,82 @@ p2_pred.jump();
 assert(!p2_pred.isGrounded, 'Guest cat jumps cleanly into air');
 assert(p2_pred.vy === -12.4, 'Guest cat upward jump velocity is active');
 assert(p2_pred.state === 'JUMP_RISE', 'Guest cat enters JUMP_RISE state (not stuck in RING_OUT 360 spin)');
+
+console.log('\n--- 13. Testing Keyboard Isolation, Space Ready & 3-2-1 MEOW Countdown ---');
+
+// 13a: InputManager Host Keyboard Isolation
+const hostInput = new InputManager();
+hostInput.setActiveRole('host');
+
+(hostInput as any).heldKeys.add('ArrowRight');
+(hostInput as any).justPressedKeys.add('ArrowRight');
+(hostInput as any).heldKeys.add('KeyD');
+(hostInput as any).justPressedKeys.add('KeyD');
+
+assert(!hostInput.isDown('p2', 'right'), 'Host keyboard ArrowRight is ignored for P2 in online host mode');
+assert(!hostInput.isJustPressed('p2', 'right'), 'Host keyboard ArrowRight isJustPressed is ignored for P2 in online host mode');
+assert(hostInput.isDown('p1', 'right'), 'Host keyboard KeyD controls P1 in online host mode');
+
+// Simulate network input arriving from remote guest for P2
+hostInput.setVirtualAction('p2', 'right', true);
+assert(hostInput.isDown('p2', 'right'), 'Remote guest virtual input controls P2 on host');
+
+// 13b: InputManager Guest Keyboard Isolation
+const guestInput = new InputManager();
+guestInput.setActiveRole('guest');
+
+(guestInput as any).heldKeys.add('KeyD');
+(guestInput as any).heldKeys.add('ArrowRight');
+
+assert(!guestInput.isDown('p1', 'right'), 'Guest keyboard KeyD is ignored for P1 in online guest mode');
+assert(guestInput.isDown('p2', 'right'), 'Guest keyboard ArrowRight controls P2 in online guest mode');
+
+// In local mode (activeRole is null), both players can use their respective keys
+const localInput = new InputManager();
+localInput.setActiveRole(null);
+(localInput as any).heldKeys.add('KeyD');
+(localInput as any).heldKeys.add('ArrowRight');
+assert(localInput.isDown('p1', 'right'), 'Local mode accepts P1 keyboard inputs');
+assert(localInput.isDown('p2', 'right'), 'Local mode accepts P2 keyboard inputs');
+
+// 13c: Spacebar Ready & 3-2-1 MEOW Countdown in ArcadeHUD
+const arcadeHud = new ArcadeHUD();
+arcadeHud.startMatch();
+
+assert(arcadeHud.matchPhase === 'ROUND_READY', 'Match starts in ROUND_READY phase');
+assert(!arcadeHud.p1Ready && !arcadeHud.p2Ready, 'Both players start not ready');
+
+// Single player readies up
+arcadeHud.p1Ready = true;
+arcadeHud.update();
+assert(arcadeHud.matchPhase === 'ROUND_READY', 'Countdown does NOT start when only P1 is ready');
+
+// Second player readies up
+arcadeHud.p2Ready = true;
+arcadeHud.update();
+assert(arcadeHud.matchPhase === 'ROUND_COUNTDOWN', 'Countdown starts when both players are ready');
+assert(arcadeHud.countdownText === '3', 'Countdown starts at 3');
+
+// Step through countdown
+for (let f = 0; f < 45; f++) arcadeHud.update();
+assert(arcadeHud.countdownText === '2', 'Countdown advances to 2');
+
+for (let f = 0; f < 40; f++) arcadeHud.update();
+assert(arcadeHud.countdownText === '1', 'Countdown advances to 1');
+
+for (let f = 0; f < 40; f++) arcadeHud.update();
+assert(arcadeHud.countdownText === 'MEOW!', 'Countdown displays MEOW!');
+
+for (let f = 0; f < 40; f++) arcadeHud.update();
+assert(arcadeHud.matchPhase === 'FIGHT', 'Match enters FIGHT phase after MEOW!');
+assert(!arcadeHud.p1Ready && !arcadeHud.p2Ready, 'Ready flags are reset when round starts');
+
+// 13d: Next round returns to ROUND_READY and requires Space ready again
+arcadeHud.triggerRoundOver(p2_pred, cat1);
+assert(arcadeHud.matchPhase === 'ROUND_OVER', 'Enters ROUND_OVER when cat knocked out');
+
+for (let f = 0; f < 145; f++) arcadeHud.update();
+assert(arcadeHud.matchPhase === 'ROUND_READY', 'Next round transitions to ROUND_READY');
+assert(!arcadeHud.p1Ready && !arcadeHud.p2Ready, 'Next round requires both players to ready up again');
 
 console.log('\n🎉 ALL GAMEPLAY SIMULATION TESTS PASSED!\n');

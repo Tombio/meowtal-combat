@@ -15,6 +15,8 @@ export class OnlineModal {
   private initialSectionEl: HTMLElement | null = null;
 
   private onGameStartCallback: (() => void) | null = null;
+  public onOpponentLeft: (() => void) | null = null;
+  public onClose: (() => void) | null = null;
 
   constructor(network: NetworkManager, onGameStart?: () => void) {
     this.network = network;
@@ -37,7 +39,13 @@ export class OnlineModal {
 
     this.hostBtnEl?.addEventListener('click', () => this.handleHost());
     this.joinBtnEl?.addEventListener('click', () => this.handleJoin());
-    this.closeBtnEl?.addEventListener('click', () => this.close());
+    this.closeBtnEl?.addEventListener('click', () => {
+      this.network.leaveRoom();
+      if (this.onClose) {
+        this.onClose();
+      }
+      this.close();
+    });
     this.copyBtnEl?.addEventListener('click', () => this.handleCopy());
 
     // Network connection callbacks
@@ -160,7 +168,7 @@ export class OnlineModal {
     }
   }
 
-  private handleConnectionChanged(connected: boolean, role: NetworkRole, _roomId: string): void {
+  private handleConnectionChanged(connected: boolean, role: NetworkRole, roomId: string): void {
     if (connected) {
       if (this.statusTextEl) {
         this.statusTextEl.textContent = `🎉 OPPONENT CONNECTED! YOU ARE ${role === 'host' ? 'P1 (MOCHI)' : 'P2 (KURO)'}!`;
@@ -174,9 +182,28 @@ export class OnlineModal {
         }
       }, 1400);
     } else {
-      if (this.statusTextEl) {
-        this.statusTextEl.textContent = 'OPPONENT DISCONNECTED. WAITING...';
-        this.statusTextEl.className = 'online-status-waiting';
+      // Opponent left / disconnected -> return to lobby
+      if (this.onOpponentLeft) {
+        this.onOpponentLeft();
+      }
+
+      if (this.modalEl) {
+        this.modalEl.style.display = 'flex';
+      }
+
+      if (role === 'host') {
+        const id = this.network.getRoomId() || roomId;
+        this.displayShareInfo(id);
+        if (this.statusTextEl) {
+          this.statusTextEl.textContent = 'OPPONENT LEFT. WAITING IN LOBBY FOR CHALLENGER...';
+          this.statusTextEl.className = 'online-status-waiting';
+        }
+      } else {
+        this.resetView();
+        if (this.statusTextEl) {
+          this.statusTextEl.textContent = 'HOST DISCONNECTED. RETURNED TO LOBBY.';
+          this.statusTextEl.className = 'online-status-error';
+        }
       }
     }
   }

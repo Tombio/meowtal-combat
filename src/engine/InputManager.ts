@@ -33,6 +33,15 @@ export class InputManager {
     p1: { left: false, right: false, jump: false },
     p2: { left: false, right: false, jump: false },
   };
+  private activeRole: 'host' | 'guest' | null = null;
+
+  public setActiveRole(role: 'host' | 'guest' | null): void {
+    this.activeRole = role;
+  }
+
+  public getActiveRole(): 'host' | 'guest' | null {
+    return this.activeRole;
+  }
 
   constructor() {
     this.keyMap = this.loadKeyMap();
@@ -138,13 +147,44 @@ export class InputManager {
   }
 
   public isDown(player: PlayerId, action: ActionType): boolean {
+    // In online mode: Host strictly ignores keyboard for P2; Guest strictly ignores keyboard for P1
+    if (this.activeRole === 'host' && player === 'p2') {
+      return !!this.virtualDown.p2[action];
+    }
+    if (this.activeRole === 'guest' && player === 'p1') {
+      return !!this.virtualDown.p1[action];
+    }
+
     const code = this.keyMap[player][action];
-    return this.heldKeys.has(code) || !!this.virtualDown[player][action];
+    let keyMatches = this.heldKeys.has(code);
+
+    // On guest, allow WASD as well as Arrow keys for P2
+    if (this.activeRole === 'guest' && player === 'p2') {
+      const p1Code = this.keyMap.p1[action];
+      keyMatches = keyMatches || this.heldKeys.has(p1Code);
+    }
+
+    return keyMatches || !!this.virtualDown[player][action];
   }
 
   public isJustPressed(player: PlayerId, action: ActionType): boolean {
+    // In online mode: Host strictly ignores keyboard for P2; Guest strictly ignores keyboard for P1
+    if (this.activeRole === 'host' && player === 'p2') {
+      return !!this.virtualJustPressed.p2[action];
+    }
+    if (this.activeRole === 'guest' && player === 'p1') {
+      return !!this.virtualJustPressed.p1[action];
+    }
+
     const code = this.keyMap[player][action];
-    return this.justPressedKeys.has(code) || !!this.virtualJustPressed[player][action];
+    let keyMatches = this.justPressedKeys.has(code);
+
+    if (this.activeRole === 'guest' && player === 'p2') {
+      const p1Code = this.keyMap.p1[action];
+      keyMatches = keyMatches || this.justPressedKeys.has(p1Code);
+    }
+
+    return keyMatches || !!this.virtualJustPressed[player][action];
   }
 
   /**

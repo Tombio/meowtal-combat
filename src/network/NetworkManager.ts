@@ -31,11 +31,14 @@ export interface NetworkStateSnapshot {
   phaseTimer: number;
   p1Wins: number;
   p2Wins: number;
+  p1Ready?: boolean;
+  p2Ready?: boolean;
+  countdownText?: string;
   bump?: BumpEventPacket | null;
 }
 
 export interface NetworkSignal {
-  type: 'START_MATCH' | 'RESTART_ROUND' | 'NEXT_TRACK' | 'BONK_EVENT';
+  type: 'START_MATCH' | 'RESTART_ROUND' | 'NEXT_TRACK' | 'BONK_EVENT' | 'PLAYER_READY';
   payload?: any;
 }
 
@@ -64,7 +67,13 @@ export class NetworkManager {
   public onRemoteSignalReceived: ((signal: NetworkSignal) => void) | null = null;
   public onPingUpdate: ((pingMs: number) => void) | null = null;
 
-  constructor() {}
+  constructor() {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('beforeunload', () => {
+        this.leaveRoom();
+      });
+    }
+  }
 
   public getRole(): NetworkRole | null {
     return this.role;
@@ -226,9 +235,25 @@ export class NetworkManager {
 
   private startPingLoop(): void {
     this.stopPingLoop();
+    this.lastPongReceivedAt = performance.now();
     this.sendPing();
     this.pingInterval = setInterval(() => {
       this.sendPing();
+
+      // Disconnect timeout check: if connected and no pong received for 6 seconds, trigger disconnect
+      if (this.conn && this.lastPongReceivedAt > 0 && performance.now() - this.lastPongReceivedAt > 6000) {
+        console.warn('Ping timeout: remote peer unreachable');
+        this.stopPingLoop();
+        if (this.conn) {
+          try {
+            this.conn.close();
+          } catch (e) {}
+          this.conn = null;
+        }
+        if (this.onConnectionChanged && this.role && this.currentRoomId) {
+          this.onConnectionChanged(false, this.role, this.currentRoomId);
+        }
+      }
     }, 500);
   }
 
