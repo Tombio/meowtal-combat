@@ -438,7 +438,13 @@ class CatSumoGame {
     // Ambient cherry blossom petals
     this.effects.addCherryBlossom(this.canvas.width);
     this.effects.update();
+    const prevPhase = this.hud.matchPhase;
     this.hud.update();
+
+    // Reset cats whenever entering ROUND_INTRO (from ROUND_OVER or MATCH_OVER)
+    if (this.hud.matchPhase === 'ROUND_INTRO' && prevPhase !== 'ROUND_INTRO') {
+      this.resetCatsForRound();
+    }
 
     if (this.keyModal.isOpen()) {
       return;
@@ -472,6 +478,9 @@ class CatSumoGame {
     if (this.hud.matchPhase === 'ROUND_INTRO') {
       if (this.hud.phaseTimer === 40) {
         this.sound.playTaikoKa();
+      }
+      if (this.network.isConnected() && this.network.isHost()) {
+        this.broadcastStateSnapshot();
       }
       this.input.update();
       return;
@@ -674,11 +683,6 @@ class CatSumoGame {
         // Continue gravity for fallen cat during round over
         this.p1.updatePhysics(this.arena, false, false, false, this.p2.x);
         this.p2.updatePhysics(this.arena, false, false, false, this.p1.x);
-
-        // Check if transitioning to next round
-        if (this.hud.phaseTimer === 1 && this.hud.winnerCat && this.hud.winnerCat.roundsWon < this.hud.maxRoundsToWin) {
-          this.resetCatsForRound();
-        }
 
         this.broadcastStateSnapshot();
       }

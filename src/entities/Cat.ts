@@ -139,10 +139,19 @@ export class Cat {
 
     // Handle Ring Out state
     if (this.state === 'RING_OUT') {
-      this.vy += 0.55; // Gravity in pit
-      this.x += this.vx;
-      this.y += this.vy;
-      return;
+      const ringSurface = arena.config.ringSurfaceY;
+      // Safety guard: if cat is on Dohyo platform, recover cleanly from RING_OUT
+      if (arena.isOnPlatform(this.x, this.width) && (this.y + this.height) <= ringSurface + 16) {
+        this.state = 'IDLE';
+        this.y = ringSurface - this.height;
+        this.vy = 0;
+        this.isGrounded = true;
+      } else {
+        this.vy += 0.55; // Gravity in pit
+        this.x += this.vx;
+        this.y += this.vy;
+        return;
+      }
     }
 
     // Check if falling off arena into pit
