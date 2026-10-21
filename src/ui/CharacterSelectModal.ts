@@ -1,4 +1,4 @@
-import { CatBreed } from '../entities/Cat';
+import { CatBreed, FIGHTER_PROFILES } from '../entities/Cat';
 import { SoundSynthesizer } from '../audio/SoundSynthesizer';
 import { CatRenderer } from '../graphics/CatRenderer';
 
@@ -17,6 +17,7 @@ export class CharacterSelectModal {
   public isOpen: boolean = false;
   public gameMode: 'cpu' | 'local' | 'online' = 'cpu';
   public isOnlineGuest: boolean = false;
+  public selectionTarget: 'p1' | 'p2' = 'p1';
   private openedAt: number = 0;
 
   public breeds: CatBreed[] = ['ginger_tabby', 'black_tuxedo', 'british_blue', 'calico_acrobat'];
@@ -27,6 +28,9 @@ export class CharacterSelectModal {
 
   private modeTagEl: HTMLElement | null = null;
   private fightBtnEl: HTMLElement | null = null;
+  private targetP1Btn: HTMLElement | null = null;
+  private targetP2Btn: HTMLElement | null = null;
+  private hintEl: HTMLElement | null = null;
   private cards: HTMLElement[] = [];
   private animFrameId: number | null = null;
   private animTick: number = 0;
@@ -51,29 +55,60 @@ export class CharacterSelectModal {
   private initDOM(): void {
     if (!this.modalEl) return;
     this.cards = Array.from(this.modalEl.querySelectorAll('.fighter-card')) as HTMLElement[];
+    this.targetP1Btn = document.getElementById('btn-target-p1');
+    this.targetP2Btn = document.getElementById('btn-target-p2');
+    this.hintEl = document.getElementById('char-select-nav-hint');
   }
 
   private initEvents(): void {
+    // Target button clicks for selecting P1 vs P2 / CPU
+    this.targetP1Btn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (this.gameMode === 'online' && this.isOnlineGuest) return;
+      this.selectionTarget = 'p1';
+      this.sound.playTaikoKa();
+      this.updateCardDisplays();
+    });
+
+    this.targetP2Btn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (this.gameMode === 'online' && !this.isOnlineGuest) return;
+      this.selectionTarget = 'p2';
+      this.sound.playTaikoKa();
+      this.updateCardDisplays();
+    });
+
     // Click / touch to select fighter cards
     this.cards.forEach((card, idx) => {
       card.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (this.gameMode === 'local') {
-          // If clicking card already selected by P1, move P2 there, else select for P1
-          if (this.p1Index !== idx) {
-            this.setP1Index(idx);
-          } else {
-            this.setP2Index(idx);
-          }
-        } else if (this.gameMode === 'online') {
+        if (this.gameMode === 'online') {
           if (this.isOnlineGuest) {
             this.setP2Index(idx);
           } else {
             this.setP1Index(idx);
           }
-        } else {
-          this.setP1Index(idx);
+        } else if (this.gameMode === 'local' || this.gameMode === 'cpu') {
+          if (this.selectionTarget === 'p2') {
+            this.setP2Index(idx);
+          } else {
+            this.setP1Index(idx);
+          }
         }
+      });
+
+      card.querySelector('.tag-p1')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (this.gameMode === 'online' && this.isOnlineGuest) return;
+        this.selectionTarget = 'p1';
+        this.setP1Index(idx);
+      });
+
+      card.querySelector('.tag-p2')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (this.gameMode === 'online' && !this.isOnlineGuest) return;
+        this.selectionTarget = 'p2';
+        this.setP2Index(idx);
       });
     });
 
@@ -112,12 +147,31 @@ export class CharacterSelectModal {
         return;
       }
 
+      // Tab toggles active selection target in local/cpu mode
+      if (code === 'Tab') {
+        e.preventDefault();
+        if (this.gameMode === 'cpu' || this.gameMode === 'local') {
+          this.selectionTarget = (this.selectionTarget === 'p1') ? 'p2' : 'p1';
+          this.sound.playTaikoKa();
+          this.updateCardDisplays();
+        }
+        return;
+      }
+
       // Movement controls
-      if (this.gameMode === 'online' && this.isOnlineGuest) {
-        if (code === 'KeyA' || code === 'ArrowLeft') {
-          this.cycleP2(-1);
-        } else if (code === 'KeyD' || code === 'ArrowRight') {
-          this.cycleP2(1);
+      if (this.gameMode === 'online') {
+        if (this.isOnlineGuest) {
+          if (code === 'KeyA' || code === 'ArrowLeft') {
+            this.cycleP2(-1);
+          } else if (code === 'KeyD' || code === 'ArrowRight') {
+            this.cycleP2(1);
+          }
+        } else {
+          if (code === 'KeyA' || code === 'ArrowLeft') {
+            this.cycleP1(-1);
+          } else if (code === 'KeyD' || code === 'ArrowRight') {
+            this.cycleP1(1);
+          }
         }
       } else {
         // P1 Controls: A / D
@@ -127,13 +181,11 @@ export class CharacterSelectModal {
           this.cycleP1(1);
         }
 
-        // P2 Controls in local mode: Left / Right Arrows
-        if (this.gameMode === 'local') {
-          if (code === 'ArrowLeft') {
-            this.cycleP2(-1);
-          } else if (code === 'ArrowRight') {
-            this.cycleP2(1);
-          }
+        // P2 / CPU Controls: Left / Right Arrows
+        if (code === 'ArrowLeft') {
+          this.cycleP2(-1);
+        } else if (code === 'ArrowRight') {
+          this.cycleP2(1);
         }
       }
     });
@@ -143,6 +195,7 @@ export class CharacterSelectModal {
     this.openedAt = (typeof performance !== 'undefined' ? performance.now() : Date.now());
     this.gameMode = mode;
     this.isOnlineGuest = isOnlineGuest;
+    this.selectionTarget = (mode === 'online' && isOnlineGuest) ? 'p2' : 'p1';
     this.isOpen = true;
     this.p1Index = Math.max(0, this.breeds.indexOf(initialP1));
     this.p2Index = Math.max(0, this.breeds.indexOf(initialP2));
@@ -176,6 +229,18 @@ export class CharacterSelectModal {
         case 'online':
           this.modeTagEl.textContent = isOnlineGuest ? 'ONLINE DUEL (YOU ARE GUEST)' : 'ONLINE DUEL (YOU ARE HOST)';
           break;
+      }
+    }
+
+    if (this.hintEl) {
+      if (mode === 'cpu') {
+        this.hintEl.textContent = 'YOU: [A][D] | CPU: [◀][▶] | [TAB] Switch Target | Click [YOU] / [CPU] or Cards to Select';
+      } else if (mode === 'local') {
+        this.hintEl.textContent = 'P1: [A][D] Navigate | P2: [◀][▶] Navigate | Tap or Click to Select';
+      } else {
+        this.hintEl.textContent = isOnlineGuest
+          ? 'YOU ARE GUEST (P2): [A][D] or [◀][▶] Navigate | Select your fighter'
+          : 'YOU ARE HOST (P1): [A][D] or [◀][▶] Navigate | Select your fighter';
       }
     }
 
@@ -246,19 +311,48 @@ export class CharacterSelectModal {
 
   private confirmStart(): void {
     const p1Breed = this.getP1Breed();
-    let p2Breed = this.getP2Breed();
-
-    // If 1P CPU mode and both chose same, CPU can randomize if desired
-    if (this.gameMode === 'cpu' && p1Breed === p2Breed) {
-      const others = this.breeds.filter(b => b !== p1Breed);
-      p2Breed = others[Math.floor(Math.random() * others.length)];
-    }
+    const p2Breed = this.getP2Breed();
 
     this.close();
     this.options.onStartMatch(p1Breed, p2Breed);
   }
 
   private updateCardDisplays(): void {
+    const p1Breed = this.breeds[this.p1Index];
+    const p2Breed = this.breeds[this.p2Index];
+    const p1Name = FIGHTER_PROFILES[p1Breed]?.name.toUpperCase() || 'MOCHI';
+    const p2Name = FIGHTER_PROFILES[p2Breed]?.name.toUpperCase() || 'KURO';
+
+    if (this.targetP1Btn) {
+      this.targetP1Btn.textContent = (this.gameMode === 'online')
+        ? (this.isOnlineGuest ? `OPPONENT (HOST): ${p1Name}` : `🐱 YOU (HOST): ${p1Name}`)
+        : `🐱 YOU (P1): ${p1Name}`;
+      this.targetP1Btn.classList.toggle('active', this.selectionTarget === 'p1');
+      if (this.gameMode === 'online' && this.isOnlineGuest) {
+        this.targetP1Btn.style.opacity = '0.7';
+        this.targetP1Btn.style.cursor = 'default';
+      } else {
+        this.targetP1Btn.style.opacity = '1.0';
+        this.targetP1Btn.style.cursor = 'pointer';
+      }
+    }
+
+    if (this.targetP2Btn) {
+      this.targetP2Btn.textContent = (this.gameMode === 'cpu')
+        ? `🤖 CPU (P2): ${p2Name}`
+        : ((this.gameMode === 'online')
+          ? (this.isOnlineGuest ? `🐱 YOU (GUEST): ${p2Name}` : `OPPONENT (GUEST): ${p2Name}`)
+          : `🥋 P2: ${p2Name}`);
+      this.targetP2Btn.classList.toggle('active', this.selectionTarget === 'p2');
+      if (this.gameMode === 'online' && !this.isOnlineGuest) {
+        this.targetP2Btn.style.opacity = '0.7';
+        this.targetP2Btn.style.cursor = 'default';
+      } else {
+        this.targetP2Btn.style.opacity = '1.0';
+        this.targetP2Btn.style.cursor = 'pointer';
+      }
+    }
+
     this.cards.forEach((card, idx) => {
       const isP1 = (this.p1Index === idx);
       const isP2 = (this.p2Index === idx);

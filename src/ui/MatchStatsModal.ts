@@ -75,13 +75,11 @@ export class MatchStatsModal {
   private initEvents(): void {
     document.getElementById('btn-stats-rematch')?.addEventListener('click', () => {
       this.sound.playTaikoDon();
-      this.close();
       this.options.onRematch();
     });
 
     document.getElementById('btn-stats-select')?.addEventListener('click', () => {
       this.sound.playTaikoDon();
-      this.close();
       this.options.onChangeFighters();
     });
 
@@ -95,6 +93,11 @@ export class MatchStatsModal {
   public open(winner: Cat, p1: Cat, p2: Cat): void {
     this.winnerCat = winner;
     this.isOpen = true;
+
+    const btnRematch = document.getElementById('btn-stats-rematch');
+    if (btnRematch) btnRematch.textContent = '🔄 REMATCH';
+    const btnSelect = document.getElementById('btn-stats-select');
+    if (btnSelect) btnSelect.textContent = '🐾 FIGHTERS';
 
     if (this.modalEl) {
       this.modalEl.classList.add('active');

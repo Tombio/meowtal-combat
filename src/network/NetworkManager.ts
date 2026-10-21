@@ -64,7 +64,7 @@ export interface NetworkStateSnapshot {
 }
 
 export interface NetworkSignal {
-  type: 'START_MATCH' | 'RESTART_ROUND' | 'NEXT_TRACK' | 'BONK_EVENT' | 'PLAYER_READY' | 'CHAR_SELECT';
+  type: 'START_MATCH' | 'RESTART_ROUND' | 'NEXT_TRACK' | 'BONK_EVENT' | 'PLAYER_READY' | 'CHAR_SELECT' | 'REQUEST_REMATCH' | 'GOTO_CHAR_SELECT' | 'REQUEST_CHAR_SELECT';
   payload?: any;
 }
 
@@ -266,8 +266,8 @@ export class NetworkManager {
     this.pingInterval = setInterval(() => {
       this.sendPing();
 
-      // Disconnect timeout check: if connected and no pong received for 6 seconds, trigger disconnect
-      if (this.conn && this.lastPongReceivedAt > 0 && performance.now() - this.lastPongReceivedAt > 6000) {
+      // Disconnect timeout check: if connected and no pong received for 20 seconds, trigger disconnect
+      if (this.conn && this.lastPongReceivedAt > 0 && performance.now() - this.lastPongReceivedAt > 20000) {
         console.warn('Ping timeout: remote peer unreachable');
         this.stopPingLoop();
         if (this.conn) {

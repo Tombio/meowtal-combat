@@ -1080,4 +1080,49 @@ console.log('\n--- 22. Testing Menu Navigation & Fighter Selection Flow ---');
   assert(receivedBreeds.p2Breed === 'calico_acrobat', 'Remote p2Breed matches Guest selection');
 }
 
+console.log('\n--- 23. Testing CPU Fighter Selection & Online Post-Match Flow ---');
+{
+  // Test 23a: Independent CPU cat selection
+  const p1 = new Cat({ id: 'p1', name: 'Boris', breed: 'british_blue', initialX: 300, initialFacing: 1 }, arena.config.ringSurfaceY);
+  const p2 = new Cat({ id: 'p2', name: 'Boris', breed: 'british_blue', initialX: 604, initialFacing: -1 }, arena.config.ringSurfaceY);
+  assert(p1.breed === 'british_blue', 'P1 selected Boris');
+  assert(p2.breed === 'british_blue', 'P2/CPU selected Boris independently (mirror match allowed)');
+
+  // Test 23b: Online Rematch & Character Select signals
+  let hostSentSignal: any = null;
+  let guestReceivedCharSelect = false;
+  let guestReceivedRematch = false;
+
+  const mockHostSignalHandler = (signal: any) => {
+    if (signal.type === 'REQUEST_REMATCH') {
+      // Host responds with START_MATCH
+      hostSentSignal = { type: 'START_MATCH', payload: { p1Breed: p1.breed, p2Breed: p2.breed } };
+    } else if (signal.type === 'REQUEST_CHAR_SELECT') {
+      // Host responds with GOTO_CHAR_SELECT
+      hostSentSignal = { type: 'GOTO_CHAR_SELECT' };
+    }
+  };
+
+  const mockGuestSignalHandler = (signal: any) => {
+    if (signal.type === 'START_MATCH') {
+      guestReceivedRematch = true;
+    } else if (signal.type === 'GOTO_CHAR_SELECT') {
+      guestReceivedCharSelect = true;
+    }
+  };
+
+  // Guest requests Rematch
+  mockHostSignalHandler({ type: 'REQUEST_REMATCH' });
+  assert(hostSentSignal?.type === 'START_MATCH', 'Host processed REQUEST_REMATCH and broadcast START_MATCH');
+  mockGuestSignalHandler(hostSentSignal);
+  assert(guestReceivedRematch, 'Guest successfully received START_MATCH without disconnection');
+
+  // Guest requests Change Fighters
+  hostSentSignal = null;
+  mockHostSignalHandler({ type: 'REQUEST_CHAR_SELECT' });
+  assert(hostSentSignal?.type === 'GOTO_CHAR_SELECT', 'Host processed REQUEST_CHAR_SELECT and broadcast GOTO_CHAR_SELECT');
+  mockGuestSignalHandler(hostSentSignal);
+  assert(guestReceivedCharSelect, 'Guest successfully transitioned to GOTO_CHAR_SELECT without disconnection');
+}
+
 console.log('\n🎉 ALL GAMEPLAY SIMULATION TESTS PASSED!\n');

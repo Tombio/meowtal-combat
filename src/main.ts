@@ -105,10 +105,27 @@ class CatSumoGame {
       if (this.charSelect.isOpen) {
         this.charSelect.close();
       }
+      if (this.matchStats.isOpen) {
+        this.matchStats.close();
+      }
       this.hud.matchPhase = 'TITLE';
+      this.p1.roundsWon = 0;
+      this.p2.roundsWon = 0;
+      this.resetCatsForRound();
+      this.input.setActiveRole(null);
     };
     this.onlineModal.onClose = () => {
+      if (this.charSelect.isOpen) {
+        this.charSelect.close();
+      }
+      if (this.matchStats.isOpen) {
+        this.matchStats.close();
+      }
       this.hud.matchPhase = 'TITLE';
+      this.p1.roundsWon = 0;
+      this.p2.roundsWon = 0;
+      this.resetCatsForRound();
+      this.input.setActiveRole(null);
       this.mainMenu.open();
     };
 
@@ -157,13 +174,28 @@ class CatSumoGame {
 
     this.matchStats = new MatchStatsModal(this.sound, this.catRenderer, {
       onRematch: () => {
-        this.startTournamentMatch(this.p1.breed, this.p2.breed);
+        if (this.network.isConnected()) {
+          this.triggerOnlineRematch();
+        } else {
+          this.matchStats.close();
+          this.startTournamentMatch(this.p1.breed, this.p2.breed);
+        }
       },
       onChangeFighters: () => {
-        this.hud.matchPhase = 'TITLE';
-        this.charSelect.open(this.gameMode, this.p1.breed, this.p2.breed, false);
+        if (this.network.isConnected()) {
+          this.triggerOnlineCharSelect();
+        } else {
+          this.matchStats.close();
+          this.hud.matchPhase = 'TITLE';
+          this.charSelect.open(this.gameMode, this.p1.breed, this.p2.breed, false);
+        }
       },
       onMainMenu: () => {
+        if (this.network.isConnected()) {
+          this.network.leaveRoom();
+          this.input.setActiveRole(null);
+        }
+        this.matchStats.close();
         this.hud.matchPhase = 'TITLE';
         this.p1.roundsWon = 0;
         this.p2.roundsWon = 0;
@@ -224,24 +256,6 @@ class CatSumoGame {
         // closed menu
       },
     });
-
-    // When opponent leaves, host returns to lobby and resets match to title
-    this.onlineModal.onOpponentLeft = () => {
-      this.hud.matchPhase = 'TITLE';
-      this.p1.roundsWon = 0;
-      this.p2.roundsWon = 0;
-      this.resetCatsForRound();
-      this.input.setActiveRole(null);
-    };
-
-    // When modal is closed (X button), return to local title mode
-    this.onlineModal.onClose = () => {
-      this.hud.matchPhase = 'TITLE';
-      this.p1.roundsWon = 0;
-      this.p2.roundsWon = 0;
-      this.resetCatsForRound();
-      this.input.setActiveRole(null);
-    };
 
     this.initControls();
     this.initNetworkSync();
@@ -492,8 +506,12 @@ class CatSumoGame {
         if (e.code === 'Space' || e.code === 'Enter' ||
             this.input.isKeyForPlayer(e.code, 'p1') || this.input.isKeyForPlayer(e.code, 'p2')) {
           this.sound.playTaikoDon();
-          this.matchStats.close();
-          this.startTournamentMatch(this.p1.breed, this.p2.breed);
+          if (this.network.isConnected()) {
+            this.triggerOnlineRematch();
+          } else {
+            this.matchStats.close();
+            this.startTournamentMatch(this.p1.breed, this.p2.breed);
+          }
         }
       }
     });
@@ -590,9 +608,20 @@ class CatSumoGame {
           this.p1.setBreed(signal.payload.breed);
           this.charSelect.setRemoteP1Breed(signal.payload.breed);
         }
+      } else if (signal.type === 'REQUEST_REMATCH' && this.network.isHost()) {
+        this.triggerOnlineRematch();
+      } else if (signal.type === 'REQUEST_CHAR_SELECT' && this.network.isHost()) {
+        this.triggerOnlineCharSelect();
+      } else if (signal.type === 'GOTO_CHAR_SELECT') {
+        if (this.matchStats.isOpen) this.matchStats.close();
+        this.hud.matchPhase = 'TITLE';
+        this.charSelect.open('online', this.p1.breed, this.p2.breed, true);
       } else if (signal.type === 'START_MATCH' && signal.payload) {
         if (this.charSelect.isOpen) {
           this.charSelect.close();
+        }
+        if (this.matchStats.isOpen) {
+          this.matchStats.close();
         }
         this.startTournamentMatch(signal.payload.p1Breed, signal.payload.p2Breed);
       }
@@ -694,6 +723,8 @@ class CatSumoGame {
         if (this.hud.matchPhase !== state.matchPhase) {
           this.hud.matchPhase = state.matchPhase as any;
           if (state.matchPhase === 'ROUND_READY') {
+            if (this.charSelect.isOpen) this.charSelect.close();
+            if (this.matchStats.isOpen) this.matchStats.close();
             this.sound.playTaikoDon();
             this.hud.startRoundReady();
             this.resetCatsForRound();
@@ -845,6 +876,45 @@ class CatSumoGame {
     this.charSelect.open('online', this.p1.breed, this.p2.breed, isGuest);
   }
 
+  private triggerOnlineRematch(): void {
+    if (this.network.isHost()) {
+      this.network.sendSignal({
+        type: 'START_MATCH',
+        payload: { p1Breed: this.p1.breed, p2Breed: this.p2.breed },
+      });
+      if (this.matchStats.isOpen) this.matchStats.close();
+      if (this.charSelect.isOpen) this.charSelect.close();
+      this.startTournamentMatch(this.p1.breed, this.p2.breed);
+    } else {
+      this.network.sendSignal({
+        type: 'REQUEST_REMATCH',
+      });
+      const rematchBtn = document.getElementById('btn-stats-rematch');
+      if (rematchBtn) {
+        rematchBtn.textContent = '⏳ WAITING FOR HOST...';
+      }
+    }
+  }
+
+  private triggerOnlineCharSelect(): void {
+    if (this.network.isHost()) {
+      this.network.sendSignal({
+        type: 'GOTO_CHAR_SELECT',
+      });
+      if (this.matchStats.isOpen) this.matchStats.close();
+      this.hud.matchPhase = 'TITLE';
+      this.charSelect.open('online', this.p1.breed, this.p2.breed, false);
+    } else {
+      this.network.sendSignal({
+        type: 'REQUEST_CHAR_SELECT',
+      });
+      const selectBtn = document.getElementById('btn-stats-select');
+      if (selectBtn) {
+        selectBtn.textContent = '⏳ WAITING FOR HOST...';
+      }
+    }
+  }
+
   private resetCatsForRound(): void {
     this.hostInputQueue = [];
     this.p1Combo?.reset();
@@ -928,8 +998,15 @@ class CatSumoGame {
       }
       if (this.input.isJustPressed('p1', 'jump') || this.input.isJustPressed('p2', 'jump')) {
         this.sound.playTaikoDon();
-        this.matchStats.close();
-        this.startTournamentMatch(this.p1.breed, this.p2.breed);
+        if (this.network.isConnected()) {
+          this.triggerOnlineRematch();
+        } else {
+          this.matchStats.close();
+          this.startTournamentMatch(this.p1.breed, this.p2.breed);
+        }
+      }
+      if (this.network.isConnected() && this.network.isHost()) {
+        this.broadcastStateSnapshot();
       }
       this.input.update();
       return;

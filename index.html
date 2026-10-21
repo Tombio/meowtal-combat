@@ -547,6 +547,37 @@
       box-shadow: 0 0 6px #00e5ff;
     }
 
+    .char-target-pill {
+      background: #1a0f2e;
+      border: 1px solid #5c2d91;
+      color: #aaa;
+      font-family: inherit;
+      font-size: 8px;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .char-target-pill:hover {
+      background: #2a1645;
+      color: #fff;
+    }
+
+    .char-target-pill.pill-p1.active {
+      background: #3c1335;
+      border-color: #ff007f;
+      color: #fff;
+      box-shadow: 0 0 10px rgba(255, 0, 127, 0.45);
+    }
+
+    .char-target-pill.pill-p2.active {
+      background: #0f2c42;
+      border-color: #00e5ff;
+      color: #fff;
+      box-shadow: 0 0 10px rgba(0, 229, 255, 0.45);
+    }
+
     .fighter-card-canvas {
       width: 90px;
       height: 75px;
@@ -1345,7 +1376,12 @@
       <div id="char-select-modal">
         <div class="modal-box char-select-box">
           <div class="modal-title" style="color: #00f0ff; text-shadow: 0 0 10px #00f0ff;">★ SELECT YOUR FIGHTER ★</div>
-          <div id="char-select-mode-tag" style="font-size: 8px; color: #ffe600; margin-bottom: 12px; letter-spacing: 1px;">1P VS CPU</div>
+          <div id="char-select-mode-tag" style="font-size: 8px; color: #ffe600; margin-bottom: 8px; letter-spacing: 1px;">1P VS CPU</div>
+
+          <div id="char-select-target-bar" style="display: flex; justify-content: center; gap: 8px; margin-bottom: 10px;">
+            <button id="btn-target-p1" class="char-target-pill pill-p1 active" type="button">🐱 YOU (P1): MOCHI</button>
+            <button id="btn-target-p2" class="char-target-pill pill-p2" type="button">🤖 CPU (P2): KURO</button>
+          </div>
 
           <div class="char-grid">
             <!-- Mochi Card -->
@@ -1397,8 +1433,8 @@
             </div>
           </div>
 
-          <div style="font-size: 7px; color: #aaa; margin-bottom: 12px;">
-            P1: [A][D] Navigate | P2: [◀][▶] Navigate | Tap or Click to Select
+          <div id="char-select-nav-hint" style="font-size: 7px; color: #aaa; margin-bottom: 12px;">
+            YOU: [A][D] | CPU: [◀][▶] | [TAB] Switch Target | Click [YOU] / [CPU] or Cards to Select
           </div>
 
           <div style="display: flex; justify-content: center; gap: 10px;">
