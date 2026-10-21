@@ -5,6 +5,7 @@ import { SoundSynthesizer } from '../audio/SoundSynthesizer';
 export interface MainMenuOptions {
   onSelectMode: (mode: 'cpu' | 'local', diff: CPUDifficulty) => void;
   onOpenOnline: () => void;
+  onChangeDifficulty?: (diff: CPUDifficulty) => void;
   onSelectStage: (stage: StageSelection) => void;
   onToggleCRT: () => boolean;
   onToggleSFX: () => boolean;
@@ -23,11 +24,14 @@ export class MainMenuModal {
   public currentMode: 'cpu' | 'local' = 'cpu';
   public currentDiff: CPUDifficulty = 'normal';
   public currentStageSelection: StageSelection = 'random';
+  public selectedNavIndex: number = 0; // 0: cpu, 1: local, 2: online, 3: stage
   private crtEnabled: boolean = true;
   private isHowToPlayOpen: boolean = false;
+  private openedAt: number = 0;
 
   private diffList: CPUDifficulty[] = ['easy', 'normal', 'hard'];
   private stageList: StageSelection[] = ['random', 'dojo', 'cyberpunk', 'thunder'];
+  private navRows: HTMLElement[] = [];
 
   // DOM Elements
   private diffLabel: HTMLElement;
@@ -51,11 +55,25 @@ export class MainMenuModal {
     this.trackBtn = document.getElementById('menu-btn-track') as HTMLElement;
     this.howToPlayPanel = document.getElementById('how-to-play-panel') as HTMLElement;
 
+    const rowCpu = document.getElementById('menu-row-cpu');
+    const rowLocal = document.getElementById('menu-row-local');
+    const rowOnline = document.getElementById('menu-row-online');
+    const rowStage = document.getElementById('menu-row-stage');
+    this.navRows = [rowCpu, rowLocal, rowOnline, rowStage].filter(Boolean) as HTMLElement[];
+
     this.initEvents();
     this.updateDisplay();
   }
 
   private initEvents(): void {
+    // Mouse hover selection tracking
+    this.navRows.forEach((row, idx) => {
+      row.addEventListener('mouseenter', () => {
+        this.selectedNavIndex = idx;
+        this.updateNavHighlight();
+      });
+    });
+
     // Difficulty Previous / Next
     document.getElementById('menu-btn-diff-prev')?.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -78,25 +96,17 @@ export class MainMenuModal {
 
     // 1P VS CPU start
     document.getElementById('menu-row-cpu')?.addEventListener('click', () => {
-      this.currentMode = 'cpu';
-      this.sound.playTaikoDon();
-      this.options.onSelectMode('cpu', this.currentDiff);
-      this.close();
+      this.selectCpuMode();
     });
 
     // 2P LOCAL start
     document.getElementById('menu-row-local')?.addEventListener('click', () => {
-      this.currentMode = 'local';
-      this.sound.playTaikoDon();
-      this.options.onSelectMode('local', this.currentDiff);
-      this.close();
+      this.selectLocalMode();
     });
 
     // ONLINE DUEL
     document.getElementById('menu-row-online')?.addEventListener('click', () => {
-      this.sound.playTaikoDon();
-      this.close();
-      this.options.onOpenOnline();
+      this.selectOnlineMode();
     });
 
     // HOW TO PLAY toggle
@@ -143,12 +153,100 @@ export class MainMenuModal {
       this.options.onOpenKeyConfig();
     });
 
-    // Close on ESC
+    // Keyboard navigation inside Main Menu
     window.addEventListener('keydown', (e) => {
-      if (e.code === 'Escape' && this.isOpen()) {
+      if (!this.isOpen()) return;
+
+      const code = e.code;
+      if (code === 'Escape') {
         this.close();
+        return;
+      }
+
+      // Arrow Up / W
+      if (code === 'ArrowUp' || code === 'KeyW') {
+        e.preventDefault();
+        this.selectedNavIndex = (this.selectedNavIndex - 1 + this.navRows.length) % this.navRows.length;
+        this.sound.playTaikoKa();
+        this.updateNavHighlight();
+        return;
+      }
+
+      // Arrow Down / S
+      if (code === 'ArrowDown' || code === 'KeyS') {
+        e.preventDefault();
+        this.selectedNavIndex = (this.selectedNavIndex + 1) % this.navRows.length;
+        this.sound.playTaikoKa();
+        this.updateNavHighlight();
+        return;
+      }
+
+      // Arrow Left / A
+      if (code === 'ArrowLeft' || code === 'KeyA') {
+        if (this.selectedNavIndex === 0) {
+          e.preventDefault();
+          this.cycleDiff(-1);
+        } else if (this.selectedNavIndex === 3) {
+          e.preventDefault();
+          this.cycleStage(-1);
+        }
+        return;
+      }
+
+      // Arrow Right / D
+      if (code === 'ArrowRight' || code === 'KeyD') {
+        if (this.selectedNavIndex === 0) {
+          e.preventDefault();
+          this.cycleDiff(1);
+        } else if (this.selectedNavIndex === 3) {
+          e.preventDefault();
+          this.cycleStage(1);
+        }
+        return;
+      }
+
+      // Space or Enter selection
+      if (code === 'Space' || code === 'Enter') {
+        const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+        if (now - this.openedAt < 250) {
+          // Debounce against keydown bleeding from Title screen
+          return;
+        }
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (this.selectedNavIndex === 0) {
+          this.selectCpuMode();
+        } else if (this.selectedNavIndex === 1) {
+          this.selectLocalMode();
+        } else if (this.selectedNavIndex === 2) {
+          this.selectOnlineMode();
+        } else if (this.selectedNavIndex === 3) {
+          this.cycleStage(1);
+        }
       }
     });
+  }
+
+  public selectCpuMode(): void {
+    this.currentMode = 'cpu';
+    this.sound.playTaikoDon();
+    this.close();
+    this.options.onSelectMode('cpu', this.currentDiff);
+  }
+
+  public selectLocalMode(): void {
+    this.currentMode = 'local';
+    this.sound.playTaikoDon();
+    this.close();
+    this.options.onSelectMode('local', this.currentDiff);
+  }
+
+  public selectOnlineMode(): void {
+    this.sound.playTaikoDon();
+    this.close();
+    this.options.onOpenOnline();
   }
 
   private cycleDiff(delta: number): void {
@@ -156,7 +254,7 @@ export class MainMenuModal {
     const nextIdx = (idx + delta + this.diffList.length) % this.diffList.length;
     this.currentDiff = this.diffList[nextIdx];
     this.sound.playTaikoKa();
-    this.options.onSelectMode(this.currentMode, this.currentDiff);
+    this.options.onChangeDifficulty?.(this.currentDiff);
     this.updateDisplay();
   }
 
@@ -192,8 +290,17 @@ export class MainMenuModal {
     }
   }
 
+  public updateNavHighlight(): void {
+    this.navRows.forEach((row, idx) => {
+      row.classList.toggle('active-nav', idx === this.selectedNavIndex);
+    });
+  }
+
   public open(): void {
+    this.openedAt = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    this.selectedNavIndex = 0;
     this.updateDisplay();
+    this.updateNavHighlight();
     this.modalEl?.classList.add('active');
   }
 

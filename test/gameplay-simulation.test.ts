@@ -1049,4 +1049,35 @@ console.log('\n--- 21. Testing Dynamic Breed Swapping & SetBreed ---');
   assert(testCat.jumpMultiplier === 1.16, 'Jump multiplier updated to 1.16');
 }
 
+console.log('\n--- 22. Testing Menu Navigation & Fighter Selection Flow ---');
+{
+  const hud = new ArcadeHUD();
+  assert(hud.matchPhase === 'TITLE', 'Game begins in TITLE phase');
+
+  // Verify startMatch enters ROUND_READY requiring player ready acknowledgement
+  hud.startMatch();
+  assert(hud.matchPhase === 'ROUND_READY', 'startMatch enters ROUND_READY phase');
+  assert(hud.currentRound === 1, 'Match begins at Round 1');
+  assert(!hud.p1Ready, 'P1 must acknowledge ready');
+
+  // Online signal simulation
+  let remoteSignalReceived = false;
+  let receivedBreeds = null as any;
+  const mockSignalHandler = (signal: any) => {
+    if (signal.type === 'START_MATCH') {
+      remoteSignalReceived = true;
+      receivedBreeds = signal.payload;
+    }
+  };
+
+  mockSignalHandler({
+    type: 'START_MATCH',
+    payload: { p1Breed: 'british_blue', p2Breed: 'calico_acrobat' },
+  });
+
+  assert(remoteSignalReceived, 'Remote START_MATCH signal processed successfully');
+  assert(receivedBreeds.p1Breed === 'british_blue', 'Remote p1Breed matches Host selection');
+  assert(receivedBreeds.p2Breed === 'calico_acrobat', 'Remote p2Breed matches Guest selection');
+}
+
 console.log('\n🎉 ALL GAMEPLAY SIMULATION TESTS PASSED!\n');

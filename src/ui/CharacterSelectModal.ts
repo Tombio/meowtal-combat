@@ -16,6 +16,8 @@ export class CharacterSelectModal {
 
   public isOpen: boolean = false;
   public gameMode: 'cpu' | 'local' | 'online' = 'cpu';
+  public isOnlineGuest: boolean = false;
+  private openedAt: number = 0;
 
   public breeds: CatBreed[] = ['ginger_tabby', 'black_tuxedo', 'british_blue', 'calico_acrobat'];
   public p1Index: number = 0;
@@ -24,6 +26,7 @@ export class CharacterSelectModal {
   public p2Ready: boolean = false;
 
   private modeTagEl: HTMLElement | null = null;
+  private fightBtnEl: HTMLElement | null = null;
   private cards: HTMLElement[] = [];
   private animFrameId: number | null = null;
   private animTick: number = 0;
@@ -39,6 +42,7 @@ export class CharacterSelectModal {
 
     this.modalEl = document.getElementById('char-select-modal') as HTMLElement;
     this.modeTagEl = document.getElementById('char-select-mode-tag');
+    this.fightBtnEl = document.getElementById('btn-char-select-fight');
 
     this.initDOM();
     this.initEvents();
@@ -61,13 +65,20 @@ export class CharacterSelectModal {
           } else {
             this.setP2Index(idx);
           }
+        } else if (this.gameMode === 'online') {
+          if (this.isOnlineGuest) {
+            this.setP2Index(idx);
+          } else {
+            this.setP1Index(idx);
+          }
         } else {
           this.setP1Index(idx);
         }
       });
     });
 
-    document.getElementById('btn-char-select-fight')?.addEventListener('click', () => {
+    this.fightBtnEl?.addEventListener('click', () => {
+      if (this.isOnlineGuest) return;
       this.sound.playTaikoDon();
       this.confirmStart();
     });
@@ -91,31 +102,47 @@ export class CharacterSelectModal {
 
       // Enter or Space confirms and starts
       if (code === 'Space' || code === 'Enter') {
+        const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+        if (now - this.openedAt < 250) {
+          return;
+        }
+        if (this.isOnlineGuest) return; // Guest waits for Host
         this.sound.playTaikoDon();
         this.confirmStart();
         return;
       }
 
-      // P1 Controls: A / D or W / S
-      if (code === 'KeyA') {
-        this.cycleP1(-1);
-      } else if (code === 'KeyD') {
-        this.cycleP1(1);
-      }
-
-      // P2 Controls in local mode: Left / Right Arrows
-      if (this.gameMode === 'local') {
-        if (code === 'ArrowLeft') {
+      // Movement controls
+      if (this.gameMode === 'online' && this.isOnlineGuest) {
+        if (code === 'KeyA' || code === 'ArrowLeft') {
           this.cycleP2(-1);
-        } else if (code === 'ArrowRight') {
+        } else if (code === 'KeyD' || code === 'ArrowRight') {
           this.cycleP2(1);
+        }
+      } else {
+        // P1 Controls: A / D
+        if (code === 'KeyA') {
+          this.cycleP1(-1);
+        } else if (code === 'KeyD') {
+          this.cycleP1(1);
+        }
+
+        // P2 Controls in local mode: Left / Right Arrows
+        if (this.gameMode === 'local') {
+          if (code === 'ArrowLeft') {
+            this.cycleP2(-1);
+          } else if (code === 'ArrowRight') {
+            this.cycleP2(1);
+          }
         }
       }
     });
   }
 
-  public open(mode: 'cpu' | 'local' | 'online', initialP1 = 'ginger_tabby' as CatBreed, initialP2 = 'black_tuxedo' as CatBreed): void {
+  public open(mode: 'cpu' | 'local' | 'online', initialP1 = 'ginger_tabby' as CatBreed, initialP2 = 'black_tuxedo' as CatBreed, isOnlineGuest = false): void {
+    this.openedAt = (typeof performance !== 'undefined' ? performance.now() : Date.now());
     this.gameMode = mode;
+    this.isOnlineGuest = isOnlineGuest;
     this.isOpen = true;
     this.p1Index = Math.max(0, this.breeds.indexOf(initialP1));
     this.p2Index = Math.max(0, this.breeds.indexOf(initialP2));
@@ -124,6 +151,18 @@ export class CharacterSelectModal {
 
     if (this.modalEl) {
       this.modalEl.classList.add('active');
+    }
+
+    if (this.fightBtnEl) {
+      if (mode === 'online' && isOnlineGuest) {
+        this.fightBtnEl.textContent = '⏳ WAITING FOR HOST...';
+        this.fightBtnEl.style.opacity = '0.7';
+        this.fightBtnEl.style.cursor = 'default';
+      } else {
+        this.fightBtnEl.textContent = '🥋 FIGHT! 🥋';
+        this.fightBtnEl.style.opacity = '1.0';
+        this.fightBtnEl.style.cursor = 'pointer';
+      }
     }
 
     if (this.modeTagEl) {
@@ -135,7 +174,7 @@ export class CharacterSelectModal {
           this.modeTagEl.textContent = '2P LOCAL DUEL';
           break;
         case 'online':
-          this.modeTagEl.textContent = 'ONLINE DUEL';
+          this.modeTagEl.textContent = isOnlineGuest ? 'ONLINE DUEL (YOU ARE GUEST)' : 'ONLINE DUEL (YOU ARE HOST)';
           break;
       }
     }
@@ -189,6 +228,14 @@ export class CharacterSelectModal {
     return this.breeds[this.p2Index];
   }
 
+  public setRemoteP1Breed(breed: CatBreed): void {
+    const idx = this.breeds.indexOf(breed);
+    if (idx !== -1) {
+      this.p1Index = idx;
+      this.updateCardDisplays();
+    }
+  }
+
   public setRemoteP2Breed(breed: CatBreed): void {
     const idx = this.breeds.indexOf(breed);
     if (idx !== -1) {
@@ -222,10 +269,13 @@ export class CharacterSelectModal {
       const tagP1 = card.querySelector('.tag-p1') as HTMLElement;
       const tagP2 = card.querySelector('.tag-p2') as HTMLElement;
 
-      if (tagP1) tagP1.style.display = isP1 ? 'block' : 'none';
+      if (tagP1) {
+        tagP1.style.display = isP1 ? 'block' : 'none';
+        tagP1.textContent = (this.gameMode === 'online') ? 'HOST' : 'P1';
+      }
       if (tagP2) {
         tagP2.style.display = isP2 ? 'block' : 'none';
-        tagP2.textContent = (this.gameMode === 'cpu') ? 'CPU' : 'P2';
+        tagP2.textContent = (this.gameMode === 'cpu') ? 'CPU' : ((this.gameMode === 'online') ? 'GUEST' : 'P2');
       }
     });
   }

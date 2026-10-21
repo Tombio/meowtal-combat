@@ -506,7 +506,7 @@ export class ArcadeHUD {
       ctx.fillStyle = '#ffff00';
       ctx.shadowColor = '#ff0055';
       ctx.shadowBlur = 12;
-      ctx.fillText('INSERT COIN: PRESS [SPACE] TO START', width / 2, height / 2 + 155);
+      ctx.fillText('INSERT COIN: PRESS [SPACE] FOR MENU', width / 2, height / 2 + 155);
     }
 
     ctx.restore();
